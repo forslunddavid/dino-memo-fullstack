@@ -1,0 +1,57 @@
+.card {
+	aspect-ratio: 3/4;
+	width: auto;
+	max-height: 180px;
+	background-color: transparent;
+	perspective: 1000px;
+}
+
+.card-logo {
+	width: 100%;
+	height: 100%;
+}
+
+.card-inner {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+	transition: transform 0.8s;
+	transform-style: preserve-3d;
+}
+
+.card.flipped .card-inner {
+	transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
+	background-color: #ebe0cc;
+	border-radius: 10px;
+	box-sizing: border-box;
+}
+
+.card-back {
+	transform: rotateY(180deg);
+	color: #2f2f2f;
+	border: 4px solid #eeeeee;
+}
+
+.card-front {
+	border: 4px solid #eeeeee;
+}
+
+.card-image {
+	width: 100%;
+	height: auto;
+}
+
+.species-text {
+	margin: 0;
+	line-height: 1;
+}

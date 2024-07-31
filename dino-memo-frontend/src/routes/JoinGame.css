@@ -1,0 +1,16 @@
+.join-game-label {
+	display: flex;
+	flex-direction: row;
+}
+
+.join-game-label p {
+	margin-right: 1em;
+}
+
+.join-game-input {
+	margin: 1em 0 1em 0;
+}
+
+.join-game-button {
+	margin-bottom: 1em;
+}

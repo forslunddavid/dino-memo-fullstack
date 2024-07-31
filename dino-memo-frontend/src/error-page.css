@@ -1,0 +1,14 @@
+.dino {
+	font-family: "Courier New", Courier, monospace;
+	font-size: 16px;
+	line-height: 1.5;
+	white-space: pre-wrap; /* Allows the text to wrap */
+	word-break: keep-all; /* Prevents words from breaking */
+}
+
+#error-page {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-self: center;
+}

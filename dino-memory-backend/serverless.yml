@@ -1,0 +1,56 @@
+org: davidprivat
+service: dino-memory-backend
+
+provider:
+    name: aws
+    runtime: nodejs20.x
+    region: eu-north-1
+    profile: Dino-Memory-David
+    iam:
+        role: arn:aws:iam::310717438345:role/Dino-Memory-Role
+
+functions:
+    createGame:
+        handler: handler.createGame
+        events:
+            - http:
+                  path: game
+                  method: post
+    getGame:
+        handler: handler.getGame
+        events:
+            - http:
+                  path: game/{gameId}
+                  method: get
+    updateGame:
+        handler: handler.updateGame
+        events:
+            - http:
+                  path: game/{gameId}
+                  method: put
+    joinGame:
+        handler: handler.joinGame
+        events:
+            - http:
+                  path: game/{gameId}/join
+                  method: put
+
+resources:
+    Resources:
+        GamesTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: Games
+                AttributeDefinitions:
+                    - AttributeName: gameId
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: gameId
+                      KeyType: HASH
+                ProvisionedThroughput:
+                    ReadCapacityUnits: 5
+                    WriteCapacityUnits: 5
+
+custom:
+    esbuild:
+        build: false

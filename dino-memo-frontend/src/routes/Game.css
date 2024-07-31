@@ -1,0 +1,27 @@
+.game-bg {
+	width: 100vw;
+	height: 100vh;
+	padding-top: 1em;
+	background-size: cover;
+	color: #2f2f2f;
+}
+
+.card-container {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+	grid-template-rows: 1fr 1fr 1fr 1fr;
+	gap: 0.2em 0.2em;
+	margin: 1em;
+}
+
+.game-data {
+	display: flex;
+	height: 3em;
+	background-color: #2f2f2f;
+	color: #ebebeb;
+	display: flex;
+	justify-content: space-around;
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+}
