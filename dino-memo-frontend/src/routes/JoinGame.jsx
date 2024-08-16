@@ -10,7 +10,7 @@ function JoinGame() {
 	const handleJoinGame = async () => {
 		if (gameId && name) {
 			await fetch(
-				`https://your-api-id.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
+				`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
 				{
 					method: "PUT",
 					headers: {

@@ -40,38 +40,82 @@ function Game() {
 		player1: { name: "", points: 0 },
 		player2: { name: "", points: 0 },
 	})
+	const [error, setError] = useState(null)
 
 	useEffect(() => {
 		const fetchGameState = async () => {
-			const response = await fetch(
-				`https://your-api-id.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`
-			)
-			const gameState = await response.json()
-			setCardDeck(gameState.cardDeck || createNewGame(dinosaurs))
-			setCardFlipped(gameState.cardFlipped || Array(24).fill(false))
-			setPlayers({
-				player1: gameState.player1,
-				player2: gameState.player2,
-			})
+			try {
+				const response = await fetch(
+					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`,
+					{
+						mode: "cors", // Add this line
+						headers: {
+							"Content-Type": "application/json",
+							// Add any other necessary headers here
+						},
+					}
+				)
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+				const gameState = await response.json()
+				setCardDeck(gameState.cardDeck || createNewGame(dinosaurs))
+				setCardFlipped(gameState.cardFlipped || Array(24).fill(false))
+				setPlayers({
+					player1: gameState.player1,
+					player2: gameState.player2,
+				})
+				setError(null) // Clear any previous errors
+			} catch (e) {
+				console.error("Failed to fetch game state:", e)
+				setError("Failed to load game. Please try again later.")
+			}
 		}
 
 		fetchGameState()
-		const interval = setInterval(fetchGameState, 1000) // Polling every second
+		const interval = setInterval(fetchGameState, 5000) // Polling every 5 seconds
 		return () => clearInterval(interval)
 	}, [gameId])
 
 	const updateGameState = async (newState) => {
-		await fetch(
-			`https://your-api-id.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`,
-			{
-				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(newState),
+		try {
+			const response = await fetch(
+				`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`,
+				{
+					method: "PUT",
+					mode: "cors", // Add this line
+					headers: {
+						"Content-Type": "application/json",
+						// Add any other necessary headers here
+					},
+					body: JSON.stringify(newState),
+				}
+			)
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`)
 			}
-		)
+		} catch (e) {
+			console.error("Failed to update game state:", e)
+			setError("Failed to update game. Please try again.")
+		}
+
+		if (error) {
+			return <div className="error-message">{error}</div>
+		}
 	}
+
+	// const updateGameState = async (newState) => {
+	// 	await fetch(
+	// 		`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`,
+	// 		{
+	// 			method: "PUT",
+	// 			headers: {
+	// 				"Content-Type": "application/json",
+	// 			},
+	// 			body: JSON.stringify(newState),
+	// 		}
+	// 	)
+	// }
 
 	const handleCardClick = (index) => {
 		if (disableClicks || cardFlipped[index]) return

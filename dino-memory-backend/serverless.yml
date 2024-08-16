@@ -16,24 +16,28 @@ functions:
             - http:
                   path: game
                   method: post
+                  cors: true
     getGame:
         handler: handler.getGame
         events:
             - http:
                   path: game/{gameId}
                   method: get
+                  cors: true
     updateGame:
         handler: handler.updateGame
         events:
             - http:
                   path: game/{gameId}
                   method: put
+                  cors: true
     joinGame:
         handler: handler.joinGame
         events:
             - http:
                   path: game/{gameId}/join
                   method: put
+                  cors: true
 
 resources:
     Resources:

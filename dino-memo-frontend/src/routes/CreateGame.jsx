@@ -11,7 +11,7 @@ function CreateGame() {
 	const handleCreateGame = async () => {
 		if (player1Name) {
 			const response = await fetch(
-				"https://your-api-id.execute-api.eu-north-1.amazonaws.com/dev/game",
+				"https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game",
 				{
 					method: "POST",
 					headers: {

@@ -8,5 +8,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "aws-sdk": "^2.1665.0",
+    "serverless": "^4.1.19"
+  }
 }
