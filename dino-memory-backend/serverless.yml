@@ -8,6 +8,9 @@ provider:
     profile: Dino-Memory-David
     iam:
         role: arn:aws:iam::310717438345:role/Dino-Memory-Role
+    environment:
+        GAMES_TABLE: Games
+        DINOSAURS_TABLE: Dinosaurs
 
 functions:
     createGame:
@@ -38,22 +41,38 @@ functions:
                   path: game/{gameId}/join
                   method: put
                   cors: true
+    getDinosaurs:
+        handler: handler.getDinosaurs
+        events:
+            - http:
+                  path: dinosaurs
+                  method: get
+                  cors: true
 
 resources:
     Resources:
         GamesTable:
             Type: AWS::DynamoDB::Table
             Properties:
-                TableName: Games
+                TableName: ${self:provider.environment.GAMES_TABLE}
                 AttributeDefinitions:
                     - AttributeName: gameId
                       AttributeType: S
                 KeySchema:
                     - AttributeName: gameId
                       KeyType: HASH
-                ProvisionedThroughput:
-                    ReadCapacityUnits: 5
-                    WriteCapacityUnits: 5
+                BillingMode: PAY_PER_REQUEST
+        DinosaursTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.DINOSAURS_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: species
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: species
+                      KeyType: HASH
+                BillingMode: PAY_PER_REQUEST
 
 custom:
     esbuild:

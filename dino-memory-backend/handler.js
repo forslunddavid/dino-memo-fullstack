@@ -17,30 +17,62 @@ const respond = (statusCode, body) => {
 }
 
 module.exports.createGame = async (event) => {
-	try {
-		const gameId = Math.random().toString(36).substring(2, 8)
-		const gameData = {
-			gameId,
-			cardDeck: [],
-			cardFlipped: [],
-			player1: { name: null, points: 0 },
+	const { player1Name } = JSON.parse(event.body)
+	const gameId = Math.random().toString(36).substring(2, 8)
+
+	// Fetch dinosaurs
+	const dinosaursParams = {
+		TableName: process.env.DINOSAURS_TABLE,
+	}
+	const dinosaursResult = await dynamoDb.scan(dinosaursParams).promise()
+	const dinosaurs = dinosaursResult.Items
+
+	// Create card deck
+	const shuffledDinosaurs = shuffleArray([...dinosaurs])
+	const selectedCards = shuffledDinosaurs.slice(0, 12)
+	const cardDeck = shuffleArray([...selectedCards, ...selectedCards])
+
+	const params = {
+		TableName: process.env.GAMES_TABLE,
+		Item: {
+			gameId: gameId,
+			cardDeck: cardDeck,
+			cardFlipped: Array(cardDeck.length).fill(false),
+			player1: { name: player1Name, points: 0 },
 			player2: { name: null, points: 0 },
-		}
+		},
+	}
 
-		const params = {
-			TableName: "Games",
-			Item: gameData,
-		}
-
+	try {
 		await dynamoDb.put(params).promise()
-
-		return respond(200, { gameId, ...gameData })
+		return {
+			statusCode: 200,
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Credentials": true,
+			},
+			body: JSON.stringify({ gameId: gameId }),
+		}
 	} catch (error) {
-		console.error(error)
-		return respond(500, { error: "Internal server error" })
+		console.log(error)
+		return {
+			statusCode: 500,
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Credentials": true,
+			},
+			body: JSON.stringify({ error: "Could not create game" }),
+		}
 	}
 }
 
+function shuffleArray(array) {
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1))
+		;[array[i], array[j]] = [array[j], array[i]]
+	}
+	return array
+}
 module.exports.getGame = async (event) => {
 	try {
 		const { gameId } = event.pathParameters
@@ -91,39 +123,39 @@ module.exports.updateGame = async (event) => {
 }
 
 module.exports.joinGame = async (event) => {
+	const { gameId } = event.pathParameters
+	const { name } = JSON.parse(event.body)
+
+	const params = {
+		TableName: process.env.GAMES_TABLE,
+		Key: { gameId: gameId },
+		UpdateExpression: "set player2 = :player2",
+		ExpressionAttributeValues: {
+			":player2": { name: name, points: 0 },
+		},
+		ReturnValues: "ALL_NEW",
+	}
+
 	try {
-		const { gameId } = event.pathParameters
-		const { name } = JSON.parse(event.body)
-
-		const getParams = {
-			TableName: "Games",
-			Key: { gameId },
-		}
-
-		const data = await dynamoDb.get(getParams).promise()
-		const game = data.Item
-
-		if (!game) {
-			return respond(404, { error: "Game not found" })
-		}
-
-		const params = {
-			TableName: "Games",
-			Key: { gameId },
-			UpdateExpression: "set player1 = :p1, player2 = :p2",
-			ExpressionAttributeValues: {
-				":p1": game.player1.name ? game.player1 : { name, points: 0 },
-				":p2": game.player1.name ? { name, points: 0 } : game.player2,
+		const result = await dynamoDb.update(params).promise()
+		return {
+			statusCode: 200,
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Credentials": true,
 			},
-			ReturnValues: "UPDATED_NEW",
+			body: JSON.stringify(result.Attributes),
 		}
-
-		const updateData = await dynamoDb.update(params).promise()
-
-		return respond(200, updateData.Attributes)
 	} catch (error) {
-		console.error(error)
-		return respond(500, { error: "Internal server error" })
+		console.log(error)
+		return {
+			statusCode: 500,
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Credentials": true,
+			},
+			body: JSON.stringify({ error: "Could not join game" }),
+		}
 	}
 }
 
