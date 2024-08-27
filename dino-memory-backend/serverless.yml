@@ -1,53 +1,97 @@
-org: davidprivat
 service: dino-memory-backend
 
 provider:
     name: aws
     runtime: nodejs20.x
-    region: eu-north-1
-    profile: Dino-Memory-David
-    iam:
-        role: arn:aws:iam::310717438345:role/Dino-Memory-Role
+    stage: ${opt:stage, 'dev'}
+    region: ${opt:region, 'eu-north-1'}
     environment:
-        GAMES_TABLE: Games
-        DINOSAURS_TABLE: Dinosaurs
+        GAMES_TABLE: ${self:service}-${self:provider.stage}-games
+        DINOSAURS_TABLE: ${self:service}-${self:provider.stage}-dinosaurs
+        CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+        WEBSOCKET_ENDPOINT:
+            Fn::Join:
+                - ""
+                - - "https://"
+                  - Ref: WebsocketsApi
+                  - ".execute-api."
+                  - ${self:provider.region}
+                  - ".amazonaws.com/${self:provider.stage}"
+    apiGateway:
+        websocketApiRouteSelectionExpression: $request.body.action
+    websocket:
+        corsConfiguration:
+            allowedHeaders:
+                - Content-Type
+                - X-Amz-Date
+                - Authorization
+                - X-Api-Key
+                - X-Amz-Security-Token
+                - X-Amz-User-Agent
+            allowedOrigins:
+                - "*"
+    iam:
+        role:
+            statements:
+                - Effect: Allow
+                  Action:
+                      - dynamodb:Query
+                      - dynamodb:Scan
+                      - dynamodb:GetItem
+                      - dynamodb:PutItem
+                      - dynamodb:UpdateItem
+                      - dynamodb:DeleteItem
+                  Resource:
+                      - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GAMES_TABLE}"
+                      - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DINOSAURS_TABLE}"
+                      - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}"
+                - Effect: Allow
+                  Action:
+                      - execute-api:ManageConnections
+                  Resource:
+                      - "arn:aws:execute-api:${self:provider.region}:*:*/@connections/*"
 
 functions:
     createGame:
-        handler: handler.createGame
+        handler: index.createGame
         events:
             - http:
                   path: game
                   method: post
                   cors: true
     getGame:
-        handler: handler.getGame
+        handler: index.getGame
         events:
             - http:
                   path: game/{gameId}
                   method: get
                   cors: true
     updateGame:
-        handler: handler.updateGame
+        handler: index.updateGame
         events:
             - http:
                   path: game/{gameId}
                   method: put
                   cors: true
     joinGame:
-        handler: handler.joinGame
+        handler: index.joinGame
         events:
             - http:
                   path: game/{gameId}/join
                   method: put
                   cors: true
-    getDinosaurs:
-        handler: handler.getDinosaurs
+    websocketConnect:
+        handler: index.websocketConnect
         events:
-            - http:
-                  path: dinosaurs
-                  method: get
-                  cors: true
+            - websocket: $connect
+    websocketDisconnect:
+        handler: index.websocketDisconnect
+        events:
+            - websocket: $disconnect
+    websocketDefault:
+        handler: index.websocketDefault
+        events:
+            - websocket: $default
 
 resources:
     Resources:
@@ -73,7 +117,35 @@ resources:
                     - AttributeName: species
                       KeyType: HASH
                 BillingMode: PAY_PER_REQUEST
+        ConnectionsTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: connectionId
+                      AttributeType: S
+                    - AttributeName: gameId
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: connectionId
+                      KeyType: HASH
+                GlobalSecondaryIndexes:
+                    - IndexName: GameIdIndex
+                      KeySchema:
+                          - AttributeName: gameId
+                            KeyType: HASH
+                      Projection:
+                          ProjectionType: ALL
+                BillingMode: PAY_PER_REQUEST
+        WebsocketsApi:
+            Type: AWS::ApiGatewayV2::Api
+            Properties:
+                Name: ${self:service}-websockets-api
+                ProtocolType: WEBSOCKET
+                RouteSelectionExpression: $request.body.action
 
 custom:
     esbuild:
         build: false
+        wsApiId:
+            Ref: WebsocketsApi

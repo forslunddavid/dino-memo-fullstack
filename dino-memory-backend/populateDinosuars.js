@@ -60,6 +60,7 @@ async function populateDinosaursTable() {
 	for (const dino of dinosaurs) {
 		const params = {
 			TableName: "Dinosaurs",
+
 			Item: marshall(dino),
 		}
 
