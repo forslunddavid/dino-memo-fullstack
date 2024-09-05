@@ -42,101 +42,112 @@ const sendMessageToClient = async (connectionId, payload) => {
 }
 
 // WebSocket handlers
-module.exports.websocketConnect = async (event) => {
+exports.websocketConnect = async (event) => {
 	const connectionId = event.requestContext.connectionId
 	const gameId = event.queryStringParameters.gameId
 
-	console.log(`New WebSocket connection: ${connectionId} for game: ${gameId}`)
+	await dynamoDb
+		.put({
+			TableName: process.env.CONNECTIONS_TABLE,
+			Item: {
+				connectionId,
+				gameId,
+			},
+		})
+		.promise()
 
-	try {
-		await dynamoDb
-			.put({
-				TableName: process.env.CONNECTIONS_TABLE,
-				Item: { connectionId, gameId },
-			})
-			.promise()
-
-		return { statusCode: 200, body: "Connected." }
-	} catch (error) {
-		console.error("WebSocket Connect Error:", error)
-		return { statusCode: 500, body: "Failed to connect." }
-	}
+	return { statusCode: 200, body: "Connected." }
 }
 
-module.exports.websocketDisconnect = async (event) => {
+exports.websocketDisconnect = async (event) => {
 	const connectionId = event.requestContext.connectionId
 
-	console.log(`WebSocket disconnected: ${connectionId}`)
+	await dynamoDb
+		.delete({
+			TableName: process.env.CONNECTIONS_TABLE,
+			Key: {
+				connectionId,
+			},
+		})
+		.promise()
 
-	try {
-		await dynamoDb
-			.delete({
-				TableName: process.env.CONNECTIONS_TABLE,
-				Key: { connectionId },
-			})
-			.promise()
-
-		return { statusCode: 200, body: "Disconnected." }
-	} catch (error) {
-		console.error("WebSocket Disconnect Error:", error)
-		return { statusCode: 500, body: "Failed to disconnect." }
-	}
+	return { statusCode: 200, body: "Disconnected." }
 }
 
-module.exports.websocketDefault = async (event) => {
+exports.websocketDefault = async (event) => {
 	const connectionId = event.requestContext.connectionId
 	const body = JSON.parse(event.body)
-	const { action, gameId, gameState } = body
 
-	console.log(`Received WebSocket message: ${event.body}`)
+	if (body.action === "updateGame") {
+		const { gameId, gameState } = body
 
-	try {
-		if (action === "updateGame") {
-			// Update the game state in DynamoDB
-			await dynamoDb
-				.update({
-					TableName: process.env.GAMES_TABLE,
-					Key: { gameId },
-					UpdateExpression:
-						"SET cardFlipped = :cf, currentPlayer = :cp",
-					ExpressionAttributeValues: {
-						":cf": gameState.cardFlipped,
-						":cp": gameState.currentPlayer,
-					},
-				})
-				.promise()
+		// Update the game state in DynamoDB
+		await dynamoDb
+			.update({
+				TableName: process.env.GAMES_TABLE,
+				Key: { gameId },
+				UpdateExpression: "SET cardFlipped = :cf, currentPlayer = :cp",
+				ExpressionAttributeValues: {
+					":cf": gameState.cardFlipped,
+					":cp": gameState.currentPlayer,
+				},
+			})
+			.promise()
 
-			// Fetch all connections for this game
-			const connectionsResult = await dynamoDb
-				.query({
-					TableName: process.env.CONNECTIONS_TABLE,
-					IndexName: "GameIdIndex",
-					KeyConditionExpression: "gameId = :gameId",
-					ExpressionAttributeValues: {
-						":gameId": gameId,
-					},
-				})
-				.promise()
+		// Get all connections for this game
+		const connections = await dynamoDb
+			.query({
+				TableName: process.env.CONNECTIONS_TABLE,
+				IndexName: "GameIdIndex",
+				KeyConditionExpression: "gameId = :gameId",
+				ExpressionAttributeValues: {
+					":gameId": gameId,
+				},
+			})
+			.promise()
 
-			// Send the updated game state to all connected clients
-			const updatePromises = connectionsResult.Items.map((connection) =>
-				sendMessageToClient(connection.connectionId, {
-					type: "gameUpdate",
-					gameState,
-				})
-			)
+		// Send the updated game state to all connected clients
+		const apigwManagementApi = new AWS.ApiGatewayManagementApi({
+			apiVersion: "2018-11-29",
+			endpoint: process.env.WEBSOCKET_ENDPOINT,
+		})
 
-			await Promise.all(updatePromises)
-		}
+		const postCalls = connections.Items.map(async ({ connectionId }) => {
+			try {
+				await apigwManagementApi
+					.postToConnection({
+						ConnectionId: connectionId,
+						Data: JSON.stringify({
+							type: "gameUpdate",
+							gameState,
+						}),
+					})
+					.promise()
+			} catch (e) {
+				if (e.statusCode === 410) {
+					console.log(
+						`Found stale connection, deleting ${connectionId}`
+					)
+					await dynamoDb
+						.delete({
+							TableName: process.env.CONNECTIONS_TABLE,
+							Key: { connectionId },
+						})
+						.promise()
+				} else {
+					throw e
+				}
+			}
+		})
 
-		return { statusCode: 200, body: "Message processed." }
-	} catch (error) {
-		console.error("Error processing WebSocket message:", error)
-		return {
-			statusCode: 500,
-			body: JSON.stringify({ error: "Failed to process message" }),
+		try {
+			await Promise.all(postCalls)
+		} catch (e) {
+			return { statusCode: 500, body: e.stack }
 		}
 	}
+
+	return { statusCode: 200, body: "Message received." }
 }
 
 // Existing game handlers
