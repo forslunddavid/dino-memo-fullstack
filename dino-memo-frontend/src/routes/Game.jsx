@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useLocation } from "react-router-dom"
 import Card from "../components/Card"
 import "./Game.css"
@@ -13,6 +13,7 @@ function Game() {
 	const [localPlayer, setLocalPlayer] = useState(null)
 	const reconnectAttempts = useRef(0)
 	const maxReconnectAttempts = 5
+	const [flippedCards, setFlippedCards] = useState([])
 
 	const fetchGameState = useCallback(async () => {
 		try {
@@ -32,29 +33,15 @@ function Game() {
 			console.log("Player 1 name:", data.players?.player1?.name)
 			console.log("Player 2 name:", data.players?.player2?.name)
 
-			if (
-				playerName &&
-				data.players?.player1?.name &&
-				playerName.trim().toLowerCase() ===
-					data.players.player1.name.trim().toLowerCase()
-			) {
+			if (playerName === data.players?.player1?.name) {
 				console.log("Setting local player to player1")
 				setLocalPlayer("player1")
-			} else if (
-				playerName &&
-				data.players?.player2?.name &&
-				playerName.trim().toLowerCase() ===
-					data.players.player2.name.trim().toLowerCase()
-			) {
+			} else if (playerName === data.players?.player2?.name) {
 				console.log("Setting local player to player2")
 				setLocalPlayer("player2")
-			} else if (
-				playerName &&
-				(!data.players?.player1?.name ||
-					data.players.player1.name.trim() === "")
-			) {
-				console.log("Setting local player to player1 (empty name)")
-				setLocalPlayer("player1")
+			} else if (!data.players?.player2?.name) {
+				console.log("Setting local player to player2 (joining)")
+				setLocalPlayer("player2")
 			} else {
 				console.log("Local player not found in game state")
 				setLocalPlayer(null)
@@ -108,25 +95,12 @@ function Game() {
 			console.log("Current game state:", gameState)
 			console.log("Local player:", localPlayer)
 
-			if (!gameState) {
-				console.log("Click prevented: Game state is null")
-				return
-			}
+			if (!gameState || !localPlayer) return
+			if (gameState.currentPlayer !== localPlayer) return
+			if (gameState.cardFlipped[index]) return
 
-			if (!localPlayer) {
-				console.log("Click prevented: Local player is null")
-				return
-			}
-
-			if (gameState.currentPlayer !== localPlayer) {
-				console.log("Click prevented: Not your turn")
-				return
-			}
-
-			if (gameState.cardFlipped[index]) {
-				console.log("Click prevented: Card already flipped")
-				return
-			}
+			const newFlippedCards = [...flippedCards, index]
+			setFlippedCards(newFlippedCards)
 
 			const newCardFlipped = [...gameState.cardFlipped]
 			newCardFlipped[index] = true
@@ -136,7 +110,56 @@ function Game() {
 				cardFlipped: newCardFlipped,
 			}
 
-			console.log("Updating game state:", updatedGameState)
+			if (newFlippedCards.length === 2) {
+				const [firstCard, secondCard] = newFlippedCards
+				if (
+					gameState.cardDeck[firstCard].species ===
+					gameState.cardDeck[secondCard].species
+				) {
+					// Match found
+					updatedGameState.players[localPlayer].points += 1
+				} else {
+					// No match, flip cards back after a delay
+					setTimeout(() => {
+						const resetCardFlipped = [
+							...updatedGameState.cardFlipped,
+						]
+						resetCardFlipped[firstCard] = false
+						resetCardFlipped[secondCard] = false
+						setGameState((prevState) => ({
+							...prevState,
+							cardFlipped: resetCardFlipped,
+							currentPlayer:
+								localPlayer === "player1"
+									? "player2"
+									: "player1",
+						}))
+						setFlippedCards([])
+
+						// Send update to other player
+						if (socket && socket.readyState === WebSocket.OPEN) {
+							socket.send(
+								JSON.stringify({
+									action: "updateGame",
+									gameId: gameId,
+									gameState: {
+										...prevState,
+										cardFlipped: resetCardFlipped,
+										currentPlayer:
+											localPlayer === "player1"
+												? "player2"
+												: "player1",
+									},
+								})
+							)
+						}
+					}, 1000)
+				}
+				updatedGameState.currentPlayer =
+					localPlayer === "player1" ? "player2" : "player1"
+				setFlippedCards([])
+			}
+
 			setGameState(updatedGameState)
 
 			if (socket && socket.readyState === WebSocket.OPEN) {
@@ -153,7 +176,7 @@ function Game() {
 				setError("Connection lost. Please refresh the page.")
 			}
 		},
-		[gameState, localPlayer, socket, gameId]
+		[gameState, localPlayer, socket, gameId, flippedCards]
 	)
 
 	useEffect(() => {

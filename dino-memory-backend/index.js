@@ -86,10 +86,12 @@ exports.websocketDefault = async (event) => {
 			.update({
 				TableName: process.env.GAMES_TABLE,
 				Key: { gameId },
-				UpdateExpression: "SET cardFlipped = :cf, currentPlayer = :cp",
+				UpdateExpression:
+					"SET cardFlipped = :cf, currentPlayer = :cp, players = :p",
 				ExpressionAttributeValues: {
 					":cf": gameState.cardFlipped,
 					":cp": gameState.currentPlayer,
+					":p": gameState.players,
 				},
 			})
 			.promise()
@@ -143,7 +145,11 @@ exports.websocketDefault = async (event) => {
 		try {
 			await Promise.all(postCalls)
 		} catch (e) {
-			return { statusCode: 500, body: e.stack }
+			console.error("Error sending updates to clients:", e)
+			return {
+				statusCode: 500,
+				body: JSON.stringify({ error: "Failed to update all clients" }),
+			}
 		}
 	}
 
@@ -153,6 +159,7 @@ exports.websocketDefault = async (event) => {
 // Existing game handlers
 module.exports.createGame = async (event) => {
 	const { player1Name } = JSON.parse(event.body)
+	console.log("Creating game for player:", player1Name)
 	const gameId = Math.random().toString(36).substring(2, 8)
 
 	// Fetch dinosaurs
@@ -248,12 +255,14 @@ module.exports.getGame = async (event) => {
 			cardFlipped: result.Item.cardFlipped || [],
 			cardDeck: result.Item.cardDeck || [],
 			players: {
-				player1: result.Item.player1 || { name: "", points: 0 },
-				player2: result.Item.player2 || { name: "", points: 0 },
+				player1: result.Item.players.player1 || { name: "", points: 0 },
+				player2: result.Item.players.player2 || { name: "", points: 0 },
 			},
 			currentPlayer: result.Item.currentPlayer || "player1",
 			gameId: result.Item.gameId,
 		}
+
+		console.log("Game state retrieved:", JSON.stringify(gameState, null, 2))
 
 		return {
 			statusCode: 200,
@@ -264,7 +273,7 @@ module.exports.getGame = async (event) => {
 			body: JSON.stringify(gameState),
 		}
 	} catch (error) {
-		console.error(error)
+		console.error("Error in getGame:", error)
 		return {
 			statusCode: 500,
 			headers: {
@@ -327,23 +336,21 @@ module.exports.updateGame = async (event) => {
 
 module.exports.joinGame = async (event) => {
 	const { gameId } = event.pathParameters
-	const { name } = JSON.parse(event.body)
+	const { player2Name } = JSON.parse(event.body)
 
-	console.log(`Joining game ${gameId} with player name ${name}`)
+	console.log(`Joining game ${gameId} with player name ${player2Name}`)
+
+	const getParams = {
+		TableName: process.env.GAMES_TABLE,
+		Key: { gameId },
+	}
 
 	try {
-		// First, get the current game state
-		const getResult = await dynamoDb
-			.get({
-				TableName: process.env.GAMES_TABLE,
-				Key: { gameId },
-			})
-			.promise()
+		const result = await dynamoDb.get(getParams).promise()
+		console.log("Current game state:", JSON.stringify(result.Item, null, 2))
 
-		console.log("Get result:", JSON.stringify(getResult, null, 2))
-
-		if (!getResult.Item) {
-			console.log(`Game not found: ${gameId}`)
+		if (!result.Item) {
+			console.log("Game not found")
 			return {
 				statusCode: 404,
 				headers,
@@ -351,11 +358,10 @@ module.exports.joinGame = async (event) => {
 			}
 		}
 
-		const game = getResult.Item
+		const gameData = result.Item
 
-		// Check if player2 slot is available
-		if (game.players.player2.name) {
-			console.log(`Game ${gameId} is full`)
+		if (gameData.players.player2.name) {
+			console.log("Game is full")
 			return {
 				statusCode: 400,
 				headers,
@@ -363,48 +369,34 @@ module.exports.joinGame = async (event) => {
 			}
 		}
 
-		// Update the game with the new player
-		const updateResult = await dynamoDb
-			.update({
-				TableName: process.env.GAMES_TABLE,
-				Key: { gameId },
-				UpdateExpression: "SET players.player2 = :player2",
-				ExpressionAttributeValues: {
-					":player2": { name, points: 0 },
-				},
-				ReturnValues: "ALL_NEW",
-			})
-			.promise()
+		const updateParams = {
+			TableName: process.env.GAMES_TABLE,
+			Key: { gameId },
+			UpdateExpression: "SET players.player2 = :player2",
+			ExpressionAttributeValues: {
+				":player2": { name: player2Name, points: 0 },
+			},
+			ReturnValues: "ALL_NEW",
+		}
 
-		console.log("Update result:", JSON.stringify(updateResult, null, 2))
-
-		const updatedGame = updateResult.Attributes
-
-		// Send a game update to all connected clients
-		const connections = await dynamoDb
-			.query({
-				TableName: process.env.CONNECTIONS_TABLE,
-				IndexName: "GameIdIndex",
-				KeyConditionExpression: "gameId = :gameId",
-				ExpressionAttributeValues: { ":gameId": gameId },
-			})
-			.promise()
-
-		console.log("Connections:", JSON.stringify(connections, null, 2))
-
-		const updatePromises = connections.Items.map((connection) =>
-			sendMessageToClient(connection.connectionId, {
-				type: "gameUpdate",
-				gameState: updatedGame,
-			})
+		console.log(
+			"Updating game state:",
+			JSON.stringify(updateParams, null, 2)
 		)
 
-		await Promise.all(updatePromises)
+		const updateResult = await dynamoDb.update(updateParams).promise()
+		console.log(
+			"Updated game state:",
+			JSON.stringify(updateResult.Attributes, null, 2)
+		)
+
+		// Send a game update to all connected clients
+		await sendGameUpdate(gameId, updateResult.Attributes)
 
 		return {
 			statusCode: 200,
 			headers,
-			body: JSON.stringify(updatedGame),
+			body: JSON.stringify(updateResult.Attributes),
 		}
 	} catch (error) {
 		console.error("Error joining game:", error)

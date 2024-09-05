@@ -22,7 +22,7 @@ function JoinGame() {
 						headers: {
 							"Content-Type": "application/json",
 						},
-						body: JSON.stringify({ name: player2Name }),
+						body: JSON.stringify({ player2Name }),
 					}
 				)
 
