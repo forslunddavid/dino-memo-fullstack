@@ -10,7 +10,7 @@ function CreateGame() {
 	const navigate = useNavigate()
 
 	const handleCreateGame = async () => {
-		if (player1Name) {
+		if (player1Name.trim()) {
 			try {
 				console.log("Creating game for player:", player1Name)
 				const response = await fetch(
@@ -20,7 +20,9 @@ function CreateGame() {
 						headers: {
 							"Content-Type": "application/json",
 						},
-						body: JSON.stringify({ player1Name }),
+						body: JSON.stringify({
+							player1Name: player1Name.trim(),
+						}),
 					}
 				)
 
@@ -28,7 +30,7 @@ function CreateGame() {
 					const data = await response.json()
 					console.log("Game created successfully:", data)
 					navigate(`/game/${data.gameId}`, {
-						state: { playerName: player1Name },
+						state: { playerName: player1Name.trim() },
 					})
 				} else {
 					const errorData = await response.text()

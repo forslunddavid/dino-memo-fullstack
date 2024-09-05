@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useLocation } from "react-router-dom"
 import Card from "../components/Card"
 import "./Game.css"
@@ -7,112 +7,179 @@ import background from "../assets/wood-background.jpg"
 function Game() {
 	const { gameId } = useParams()
 	const { state } = useLocation()
-	const [gameState, setGameState] = useState({
-		cardFlipped: [],
-		cardDeck: [],
-		players: {
-			player1: { name: "", points: 0 },
-			player2: { name: "", points: 0 },
-		},
-		currentPlayer: "player1",
-	})
+	const [gameState, setGameState] = useState(null)
 	const [socket, setSocket] = useState(null)
 	const [error, setError] = useState(null)
 	const [localPlayer, setLocalPlayer] = useState(null)
+	const reconnectAttempts = useRef(0)
+	const maxReconnectAttempts = 5
 
-	useEffect(() => {
-		const fetchGameState = async () => {
-			try {
-				const response = await fetch(
-					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`
-				)
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`)
-				}
-				const data = await response.json()
-				setGameState(data)
-				if (state?.playerName === data.players.player1.name) {
-					setLocalPlayer("player1")
-				} else if (state?.playerName === data.players.player2.name) {
-					setLocalPlayer("player2")
-				}
-			} catch (e) {
-				console.error("Failed to fetch game state:", e)
-				setError("Failed to load game. Please try again later.")
+	const fetchGameState = useCallback(async () => {
+		try {
+			console.log("Fetching game state for gameId:", gameId)
+			const response = await fetch(
+				`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`
+			)
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`)
 			}
+			const data = await response.json()
+			console.log("Fetched game state:", JSON.stringify(data, null, 2))
+			setGameState(data)
+
+			const playerName = state?.playerName
+			console.log("Player name from state:", playerName)
+			console.log("Player 1 name:", data.players?.player1?.name)
+			console.log("Player 2 name:", data.players?.player2?.name)
+
+			if (
+				playerName &&
+				data.players?.player1?.name &&
+				playerName.trim().toLowerCase() ===
+					data.players.player1.name.trim().toLowerCase()
+			) {
+				console.log("Setting local player to player1")
+				setLocalPlayer("player1")
+			} else if (
+				playerName &&
+				data.players?.player2?.name &&
+				playerName.trim().toLowerCase() ===
+					data.players.player2.name.trim().toLowerCase()
+			) {
+				console.log("Setting local player to player2")
+				setLocalPlayer("player2")
+			} else if (
+				playerName &&
+				(!data.players?.player1?.name ||
+					data.players.player1.name.trim() === "")
+			) {
+				console.log("Setting local player to player1 (empty name)")
+				setLocalPlayer("player1")
+			} else {
+				console.log("Local player not found in game state")
+				setLocalPlayer(null)
+			}
+		} catch (e) {
+			console.error("Failed to fetch game state:", e)
+			setError(`Failed to load game. Error: ${e.message}`)
 		}
+	}, [gameId, state])
 
-		fetchGameState()
-
+	const connectWebSocket = useCallback(() => {
 		const ws = new WebSocket(
-			`wss://zc8eahv77i.execute-api.eu-north-1.amazonaws.com/dev`
+			`wss://zc8eahv77i.execute-api.eu-north-1.amazonaws.com/dev?gameId=${gameId}`
 		)
 
 		ws.onopen = () => {
-			console.log("WebSocket Connected")
-			ws.send(JSON.stringify({ action: "joinGame", gameId: gameId }))
+			console.log("WebSocket connected")
+			setSocket(ws)
+			reconnectAttempts.current = 0
 		}
 
 		ws.onmessage = (event) => {
-			console.log("WebSocket Message Received:", event.data)
-			try {
-				const data = JSON.parse(event.data)
-				if (data.type === "gameUpdate") {
-					setGameState(data.gameState)
-				}
-			} catch (error) {
-				console.error("Error parsing WebSocket message:", error)
+			const data = JSON.parse(event.data)
+			if (data.type === "gameUpdate") {
+				setGameState(data.gameState)
 			}
 		}
 
 		ws.onerror = (error) => {
-			console.error("WebSocket Error:", error)
-			setError("WebSocket connection error. Please try again.")
+			console.error("WebSocket error:", error)
 		}
 
 		ws.onclose = () => {
-			console.log("WebSocket Disconnected")
+			console.log("WebSocket disconnected")
+			setSocket(null)
+
+			if (reconnectAttempts.current < maxReconnectAttempts) {
+				reconnectAttempts.current++
+				setTimeout(connectWebSocket, 3000)
+			} else {
+				setError("WebSocket connection lost. Please refresh the page.")
+			}
 		}
 
-		setSocket(ws)
+		return ws
+	}, [gameId])
+
+	const handleCardClick = useCallback(
+		(index) => {
+			console.log("Card clicked:", index)
+			console.log("Current game state:", gameState)
+			console.log("Local player:", localPlayer)
+
+			if (!gameState) {
+				console.log("Click prevented: Game state is null")
+				return
+			}
+
+			if (!localPlayer) {
+				console.log("Click prevented: Local player is null")
+				return
+			}
+
+			if (gameState.currentPlayer !== localPlayer) {
+				console.log("Click prevented: Not your turn")
+				return
+			}
+
+			if (gameState.cardFlipped[index]) {
+				console.log("Click prevented: Card already flipped")
+				return
+			}
+
+			const newCardFlipped = [...gameState.cardFlipped]
+			newCardFlipped[index] = true
+
+			const updatedGameState = {
+				...gameState,
+				cardFlipped: newCardFlipped,
+			}
+
+			console.log("Updating game state:", updatedGameState)
+			setGameState(updatedGameState)
+
+			if (socket && socket.readyState === WebSocket.OPEN) {
+				console.log("Sending update via WebSocket")
+				socket.send(
+					JSON.stringify({
+						action: "updateGame",
+						gameId: gameId,
+						gameState: updatedGameState,
+					})
+				)
+			} else {
+				console.error("WebSocket is not open. Unable to send update.")
+				setError("Connection lost. Please refresh the page.")
+			}
+		},
+		[gameState, localPlayer, socket, gameId]
+	)
+
+	useEffect(() => {
+		fetchGameState()
+		const ws = connectWebSocket()
 
 		return () => {
-			if (ws.readyState === WebSocket.OPEN) {
+			if (ws) {
 				ws.close()
 			}
 		}
-	}, [gameId, state])
-
-	const handleCardClick = (index) => {
-		if (
-			gameState.currentPlayer !== localPlayer ||
-			gameState.cardFlipped[index]
-		)
-			return
-
-		const newCardFlipped = [...gameState.cardFlipped]
-		newCardFlipped[index] = true
-
-		const updatedGameState = {
-			...gameState,
-			cardFlipped: newCardFlipped,
-		}
-
-		setGameState(updatedGameState)
-		socket.send(
-			JSON.stringify({
-				action: "updateGame",
-				gameState: updatedGameState,
-			})
-		)
-	}
+	}, [fetchGameState, connectWebSocket])
 
 	if (error) {
-		return <div className="error-message">{error}</div>
+		return (
+			<div className="error-message">
+				{error}
+				<button onClick={() => window.location.reload()}>
+					Refresh Page
+				</button>
+			</div>
+		)
 	}
 
-	if (!gameState.players) {
-		return <div>Loading...</div>
+	if (!gameState) {
+		return <div>Loading... (GameId: {gameId})</div>
 	}
 
 	return (
@@ -132,52 +199,41 @@ function Game() {
 						/>
 					))}
 				</div>
-				<div className="game-name">
-					{gameState.players.player1.name && (
-						<p>
-							Player 1: {gameState.players.player1.name} (Points:{" "}
-							{gameState.players.player1.points})
-						</p>
-					)}
-					{gameState.players.player2.name && (
-						<p>
-							Player 2: {gameState.players.player2.name} (Points:{" "}
-							{gameState.players.player2.points})
-						</p>
-					)}
+				<div className="game-info">
+					<p>Game ID: {gameId}</p>
+					<p>Your Name: {state?.playerName}</p>
+					<p>
+						You are:{" "}
+						{localPlayer === "player1"
+							? "Player 1"
+							: localPlayer === "player2"
+							? "Player 2"
+							: "Spectator"}
+					</p>
+					<p>
+						Player 1:{" "}
+						{gameState.players?.player1?.name || "Unknown"} (Points:{" "}
+						{gameState.players?.player1?.points || 0})
+					</p>
+					<p>
+						Player 2:{" "}
+						{gameState.players?.player2?.name ||
+							"Waiting for player 2"}{" "}
+						(Points: {gameState.players?.player2?.points || 0})
+					</p>
+					<p>
+						Current Turn:{" "}
+						{gameState.currentPlayer === localPlayer
+							? "Your Turn"
+							: "Opponent's Turn"}
+					</p>
+					<p>
+						Connection Status:{" "}
+						{socket ? "Connected" : "Disconnected"}
+					</p>
 				</div>
 			</div>
 		</>
-		// <div className="game-container">
-		// 	<h1>Game {gameId}</h1>
-		// 	<div className="player-info">
-		// 		<p>
-		// 			Player 1: {gameState.players.player1.name} (Points:{" "}
-		// 			{gameState.players.player1.points})
-		// 		</p>
-		// 		<p>
-		// 			Player 2: {gameState.players.player2.name} (Points:{" "}
-		// 			{gameState.players.player2.points})
-		// 		</p>
-		// 		<p>
-		// 			Current Turn:{" "}
-		// 			{gameState.currentPlayer === localPlayer
-		// 				? "Your Turn"
-		// 				: "Opponent's Turn"}
-		// 		</p>
-		// 	</div>
-		// 	<div className="game-board">
-		// 		{gameState.cardDeck.map((card, index) => (
-		// 			<Card
-		// 				key={index}
-		// 				flipped={gameState.cardFlipped[index]}
-		// 				onClick={() => handleCardClick(index)}
-		// 				image={card.image}
-		// 				species={card.species}
-		// 			/>
-		// 		))}
-		// 	</div>
-		// </div>
 	)
 }
 

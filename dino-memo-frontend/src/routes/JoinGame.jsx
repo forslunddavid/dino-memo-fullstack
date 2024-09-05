@@ -7,10 +7,13 @@ function JoinGame() {
 	const [player2Name, setPlayer2Name] = useState("")
 	const [gameId, setGameId] = useState("")
 	const [error, setError] = useState("")
+	const [isLoading, setIsLoading] = useState(false)
 	const navigate = useNavigate()
 
 	const handleJoinGame = async () => {
 		if (gameId && player2Name) {
+			setIsLoading(true)
+			setError("")
 			try {
 				const response = await fetch(
 					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
@@ -37,6 +40,8 @@ function JoinGame() {
 			} catch (err) {
 				console.error("Error joining game:", err)
 				setError(err.message)
+			} finally {
+				setIsLoading(false)
 			}
 		} else {
 			setError("Please enter both a name and a game ID")
@@ -50,22 +55,26 @@ function JoinGame() {
 				style={{ backgroundImage: `url(${background})` }}
 			>
 				<label>
-					Namn
+					Name:
 					<input
 						type="text"
 						value={player2Name}
 						onChange={(e) => setPlayer2Name(e.target.value)}
+						disabled={isLoading}
 					/>
 				</label>
 				<label>
-					Spel-id
+					Game ID:
 					<input
 						type="text"
 						value={gameId}
 						onChange={(e) => setGameId(e.target.value)}
+						disabled={isLoading}
 					/>
 				</label>
-				<Button onClick={handleJoinGame}>Anslut till spel</Button>
+				<Button onClick={handleJoinGame} disabled={isLoading}>
+					{isLoading ? "Joining..." : "Join Game"}
+				</Button>
 				{error && <p style={{ color: "red" }}>{error}</p>}
 			</div>
 		</>
