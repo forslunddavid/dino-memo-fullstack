@@ -267,31 +267,31 @@ function Game() {
 				</div>
 				<div className="game-info">
 					<p>Game ID: {gameId}</p>
-					<p>Your Name: {state?.playerName}</p>
+					{/* <p>Your Name: {state?.playerName}</p> */}
 					{isSinglePlayer ? (
 						<p>Points: {gameState.players?.player1?.points || 0}</p>
 					) : (
 						<>
-							<p>
+							{/* <p>
 								You are:{" "}
 								{localPlayer === "player1"
 									? "Player 1"
 									: localPlayer === "player2"
 									? "Player 2"
 									: "Spectator"}
-							</p>
+							</p> */}
 							<p>
 								Player 1:{" "}
 								{gameState.players?.player1?.name || "Unknown"}{" "}
-								(Points:{" "}
-								{gameState.players?.player1?.points || 0})
+								Points:{" "}
+								{gameState.players?.player1?.points || 0}
 							</p>
 							<p>
 								Player 2:{" "}
 								{gameState.players?.player2?.name ||
 									"Waiting for player 2"}{" "}
-								(Points:{" "}
-								{gameState.players?.player2?.points || 0})
+								Points:{" "}
+								{gameState.players?.player2?.points || 0}
 							</p>
 							<p>
 								Current Turn:{" "}

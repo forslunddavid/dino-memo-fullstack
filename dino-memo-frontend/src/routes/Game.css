@@ -12,11 +12,12 @@
 	grid-template-rows: 1fr 1fr 1fr 1fr;
 	gap: 0.2em 0.2em;
 	margin: 1em;
+	height: fit-content;
 }
 
-.game-data {
+.game-info {
 	display: flex;
-	height: 3em;
+	height: fit-content;
 	background-color: #2f2f2f;
 	color: #ebebeb;
 	display: flex;
