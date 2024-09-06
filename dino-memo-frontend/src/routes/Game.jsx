@@ -14,6 +14,7 @@ function Game() {
 	const reconnectAttempts = useRef(0)
 	const maxReconnectAttempts = 5
 	const [flippedCards, setFlippedCards] = useState([])
+	const isSinglePlayer = state?.isSinglePlayer
 	const CARD_FLIP_DELAY = 1000
 
 	const fetchGameState = useCallback(async () => {
@@ -67,7 +68,14 @@ function Game() {
 		ws.onmessage = (event) => {
 			const data = JSON.parse(event.data)
 			if (data.type === "gameUpdate") {
-				setGameState(data.gameState)
+				setGameState((prevState) => ({
+					...prevState,
+					...data.gameState,
+					players: {
+						...prevState.players,
+						...data.gameState.players,
+					},
+				}))
 			}
 		}
 
@@ -97,7 +105,8 @@ function Game() {
 			console.log("Local player:", localPlayer)
 
 			if (!gameState || !localPlayer) return
-			if (gameState.currentPlayer !== localPlayer) return
+			if (!isSinglePlayer && gameState.currentPlayer !== localPlayer)
+				return
 			if (gameState.cardFlipped[index]) return
 
 			const newFlippedCards = [...flippedCards, index]
@@ -119,7 +128,7 @@ function Game() {
 				) {
 					// Match found
 					updatedGameState.players[localPlayer].points += 1
-					// Don't change the turn on a match
+					// Don't change turn on a match
 				} else {
 					// No match, flip cards back after a delay
 					setTimeout(() => {
@@ -138,6 +147,7 @@ function Game() {
 
 							// Send update to other player
 							if (
+								!isSinglePlayer &&
 								socket &&
 								socket.readyState === WebSocket.OPEN
 							) {
@@ -155,10 +165,9 @@ function Game() {
 						setFlippedCards([])
 					}, CARD_FLIP_DELAY)
 				}
-				// Only change turn if it's not a match
 				if (
-					gameState.cardDeck[firstCard].species !==
-					gameState.cardDeck[secondCard].species
+					!isSinglePlayer &&
+					!updatedGameState.players[localPlayer].points
 				) {
 					updatedGameState.currentPlayer =
 						localPlayer === "player1" ? "player2" : "player1"
@@ -168,7 +177,11 @@ function Game() {
 
 			setGameState(updatedGameState)
 
-			if (socket && socket.readyState === WebSocket.OPEN) {
+			if (
+				!isSinglePlayer &&
+				socket &&
+				socket.readyState === WebSocket.OPEN
+			) {
 				console.log("Sending update via WebSocket")
 				socket.send(
 					JSON.stringify({
@@ -177,12 +190,9 @@ function Game() {
 						gameState: updatedGameState,
 					})
 				)
-			} else {
-				console.error("WebSocket is not open. Unable to send update.")
-				setError("Connection lost. Please refresh the page.")
 			}
 		},
-		[gameState, localPlayer, socket, gameId, flippedCards]
+		[gameState, localPlayer, socket, gameId, flippedCards, isSinglePlayer]
 	)
 
 	useEffect(() => {
@@ -231,35 +241,43 @@ function Game() {
 				<div className="game-info">
 					<p>Game ID: {gameId}</p>
 					<p>Your Name: {state?.playerName}</p>
-					<p>
-						You are:{" "}
-						{localPlayer === "player1"
-							? "Player 1"
-							: localPlayer === "player2"
-							? "Player 2"
-							: "Spectator"}
-					</p>
-					<p>
-						Player 1:{" "}
-						{gameState.players?.player1?.name || "Unknown"} (Points:{" "}
-						{gameState.players?.player1?.points || 0})
-					</p>
-					<p>
-						Player 2:{" "}
-						{gameState.players?.player2?.name ||
-							"Waiting for player 2"}{" "}
-						(Points: {gameState.players?.player2?.points || 0})
-					</p>
-					<p>
-						Current Turn:{" "}
-						{gameState.currentPlayer === localPlayer
-							? "Your Turn"
-							: "Opponent's Turn"}
-					</p>
-					<p>
-						Connection Status:{" "}
-						{socket ? "Connected" : "Disconnected"}
-					</p>
+					{isSinglePlayer ? (
+						<p>Points: {gameState.players?.player1?.points || 0}</p>
+					) : (
+						<>
+							<p>
+								You are:{" "}
+								{localPlayer === "player1"
+									? "Player 1"
+									: localPlayer === "player2"
+									? "Player 2"
+									: "Spectator"}
+							</p>
+							<p>
+								Player 1:{" "}
+								{gameState.players?.player1?.name || "Unknown"}{" "}
+								(Points:{" "}
+								{gameState.players?.player1?.points || 0})
+							</p>
+							<p>
+								Player 2:{" "}
+								{gameState.players?.player2?.name ||
+									"Waiting for player 2"}{" "}
+								(Points:{" "}
+								{gameState.players?.player2?.points || 0})
+							</p>
+							<p>
+								Current Turn:{" "}
+								{gameState.currentPlayer === localPlayer
+									? "Your Turn"
+									: "Opponent's Turn"}
+							</p>
+							<p>
+								Connection Status:{" "}
+								{socket ? "Connected" : "Disconnected"}
+							</p>
+						</>
+					)}
 				</div>
 			</div>
 		</>

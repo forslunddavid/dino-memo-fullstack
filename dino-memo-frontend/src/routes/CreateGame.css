@@ -21,3 +21,13 @@
 .create-game-button {
 	margin-bottom: 1em;
 }
+
+.create-game-checkbox {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.create-game-checkbox input {
+	margin-right: 0.5em;
+}

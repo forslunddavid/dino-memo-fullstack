@@ -6,6 +6,7 @@ import "./CreateGame.css"
 
 function CreateGame() {
 	const [player1Name, setPlayer1Name] = useState("")
+	const [isSinglePlayer, setIsSinglePlayer] = useState(false)
 	const [error, setError] = useState(null)
 	const navigate = useNavigate()
 
@@ -22,6 +23,7 @@ function CreateGame() {
 						},
 						body: JSON.stringify({
 							player1Name: player1Name.trim(),
+							isSinglePlayer: isSinglePlayer,
 						}),
 					}
 				)
@@ -30,7 +32,10 @@ function CreateGame() {
 					const data = await response.json()
 					console.log("Game created successfully:", data)
 					navigate(`/game/${data.gameId}`, {
-						state: { playerName: player1Name.trim() },
+						state: {
+							playerName: player1Name.trim(),
+							isSinglePlayer: isSinglePlayer,
+						},
 					})
 				} else {
 					const errorData = await response.text()
@@ -69,6 +74,19 @@ function CreateGame() {
 							onChange={(e) => setPlayer1Name(e.target.value)}
 						/>
 					</label>
+					<div className="create-game-checkbox">
+						<input
+							type="checkbox"
+							id="singleplayer"
+							name="singleplayer"
+							checked={isSinglePlayer}
+							onChange={(e) =>
+								setIsSinglePlayer(e.target.checked)
+							}
+						/>
+						<label htmlFor="singleplayer">Single player game</label>
+					</div>
+
 					<div className="create-game-button">
 						<Button onClick={handleCreateGame}>
 							Create new game
