@@ -44,6 +44,8 @@ function Game() {
 			} else if (!data.players?.player2?.name) {
 				console.log("Setting local player to player2 (joining)")
 				setLocalPlayer("player2")
+				// Update player2 name in the game state
+				updatePlayer2Name(playerName)
 			} else {
 				console.log("Local player not found in game state")
 				setLocalPlayer(null)
@@ -53,6 +55,31 @@ function Game() {
 			setError(`Failed to load game. Error: ${e.message}`)
 		}
 	}, [gameId, state])
+
+	const updatePlayer2Name = useCallback(
+		async (playerName) => {
+			try {
+				const response = await fetch(
+					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({ player2Name: playerName }),
+					}
+				)
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+				const updatedGameState = await response.json()
+				setGameState(updatedGameState)
+			} catch (e) {
+				console.error("Failed to update player2 name:", e)
+			}
+		},
+		[gameId, state]
+	)
 
 	const connectWebSocket = useCallback(() => {
 		const ws = new WebSocket(
