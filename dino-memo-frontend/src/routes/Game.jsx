@@ -14,6 +14,7 @@ function Game() {
 	const reconnectAttempts = useRef(0)
 	const maxReconnectAttempts = 5
 	const [flippedCards, setFlippedCards] = useState([])
+	const CARD_FLIP_DELAY = 1000
 
 	const fetchGameState = useCallback(async () => {
 		try {
@@ -118,45 +119,50 @@ function Game() {
 				) {
 					// Match found
 					updatedGameState.players[localPlayer].points += 1
+					// Don't change the turn on a match
 				} else {
 					// No match, flip cards back after a delay
 					setTimeout(() => {
-						const resetCardFlipped = [
-							...updatedGameState.cardFlipped,
-						]
-						resetCardFlipped[firstCard] = false
-						resetCardFlipped[secondCard] = false
-						setGameState((prevState) => ({
-							...prevState,
-							cardFlipped: resetCardFlipped,
-							currentPlayer:
-								localPlayer === "player1"
-									? "player2"
-									: "player1",
-						}))
-						setFlippedCards([])
+						setGameState((prevState) => {
+							const resetCardFlipped = [...prevState.cardFlipped]
+							resetCardFlipped[firstCard] = false
+							resetCardFlipped[secondCard] = false
+							const newState = {
+								...prevState,
+								cardFlipped: resetCardFlipped,
+								currentPlayer:
+									localPlayer === "player1"
+										? "player2"
+										: "player1",
+							}
 
-						// Send update to other player
-						if (socket && socket.readyState === WebSocket.OPEN) {
-							socket.send(
-								JSON.stringify({
-									action: "updateGame",
-									gameId: gameId,
-									gameState: {
-										...prevState,
-										cardFlipped: resetCardFlipped,
-										currentPlayer:
-											localPlayer === "player1"
-												? "player2"
-												: "player1",
-									},
-								})
-							)
-						}
-					}, 1000)
+							// Send update to other player
+							if (
+								socket &&
+								socket.readyState === WebSocket.OPEN
+							) {
+								socket.send(
+									JSON.stringify({
+										action: "updateGame",
+										gameId: gameId,
+										gameState: newState,
+									})
+								)
+							}
+
+							return newState
+						})
+						setFlippedCards([])
+					}, CARD_FLIP_DELAY)
 				}
-				updatedGameState.currentPlayer =
-					localPlayer === "player1" ? "player2" : "player1"
+				// Only change turn if it's not a match
+				if (
+					gameState.cardDeck[firstCard].species !==
+					gameState.cardDeck[secondCard].species
+				) {
+					updatedGameState.currentPlayer =
+						localPlayer === "player1" ? "player2" : "player1"
+				}
 				setFlippedCards([])
 			}
 
