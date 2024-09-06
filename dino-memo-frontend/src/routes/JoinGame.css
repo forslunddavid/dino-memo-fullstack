@@ -1,16 +1,23 @@
+.welcome-wrapper {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
 .join-game-label {
 	display: flex;
 	flex-direction: row;
 }
 
-.join-game-label p {
-	margin-right: 1em;
+.join-game-input {
+	margin: 0.5em 0 0.5em 0;
 }
 
-.join-game-input {
-	margin: 1em 0 1em 0;
+.join-game-input input {
+	margin-left: 1em;
 }
 
 .join-game-button {
-	margin-bottom: 1em;
+	margin: 0.5em 0 1em 0;
 }

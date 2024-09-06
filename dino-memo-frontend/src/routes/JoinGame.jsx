@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import background from "../assets/wood-background-with-cards.jpg"
 import Button from "../components/Button"
+import "./JoinGame.css"
 
 function JoinGame() {
 	const [player2Name, setPlayer2Name] = useState("")
@@ -54,28 +55,35 @@ function JoinGame() {
 				className="game-bg"
 				style={{ backgroundImage: `url(${background})` }}
 			>
-				<label>
-					Name:
-					<input
-						type="text"
-						value={player2Name}
-						onChange={(e) => setPlayer2Name(e.target.value)}
-						disabled={isLoading}
-					/>
-				</label>
-				<label>
-					Game ID:
-					<input
-						type="text"
-						value={gameId}
-						onChange={(e) => setGameId(e.target.value)}
-						disabled={isLoading}
-					/>
-				</label>
-				<Button onClick={handleJoinGame} disabled={isLoading}>
-					{isLoading ? "Joining..." : "Join Game"}
-				</Button>
-				{error && <p style={{ color: "red" }}>{error}</p>}
+				<div className="welcome-wrapper">
+					<h3>Join a game</h3>
+					<div className="join-game-label join-game-input">
+						<label>Name:</label>
+						<input
+							type="text"
+							value={player2Name}
+							onChange={(e) => setPlayer2Name(e.target.value)}
+							disabled={isLoading}
+						/>
+					</div>
+
+					<div className="join-game-label join-game-input">
+						<label>Game ID:</label>
+						<input
+							type="text"
+							value={gameId}
+							onChange={(e) => setGameId(e.target.value)}
+							disabled={isLoading}
+						/>
+					</div>
+					<div className="join-game-button">
+						<Button onClick={handleJoinGame} disabled={isLoading}>
+							{isLoading ? "Joining..." : "Join Game"}
+						</Button>
+					</div>
+
+					{error && <p style={{ color: "red" }}>{error}</p>}
+				</div>
 			</div>
 		</>
 	)
