@@ -1,18 +1,21 @@
 .game-bg {
 	width: 100vw;
-	height: 100vh;
+	min-height: 100vh;
 	padding-top: 1em;
 	background-size: cover;
+	background-repeat: repeat-y;
 	color: #2f2f2f;
+	display: flex;
+	flex-direction: column;
 }
 
 .card-container {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
-	grid-template-rows: 1fr 1fr 1fr 1fr;
-	gap: 0.2em 0.2em;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: 0.5em;
 	margin: 1em;
-	height: fit-content;
+	justify-content: center;
+	padding-bottom: 100px;
 }
 
 .game-info {
@@ -22,7 +25,26 @@
 	color: #ebebeb;
 	display: flex;
 	justify-content: space-around;
-	position: absolute;
+	position: fixed;
 	bottom: 0;
 	width: 100%;
+	padding: 10px 0;
+}
+
+@media screen and (min-width: 600px) {
+	.card-container {
+		grid-template-columns: repeat(5, 1fr);
+	}
+}
+
+@media screen and (min-width: 860px) {
+	.card-container {
+		grid-template-columns: repeat(6, 1fr);
+	}
+}
+
+@media screen and (min-width: 1140px) {
+	.card-container {
+		grid-template-columns: repeat(8, 1fr);
+	}
 }

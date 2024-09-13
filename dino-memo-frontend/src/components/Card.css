@@ -1,9 +1,11 @@
 .card {
 	aspect-ratio: 3/4;
-	width: auto;
+	width: 100%;
+	max-width: 135px;
 	max-height: 180px;
 	background-color: transparent;
 	perspective: 1000px;
+	margin: 0 auto;
 }
 
 .card-logo {
@@ -34,6 +36,8 @@
 	background-color: #ebe0cc;
 	border-radius: 10px;
 	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
 }
 
 .card-back {
@@ -53,5 +57,8 @@
 
 .species-text {
 	margin: 0;
-	line-height: 1;
+	line-height: 1.2;
+	padding: 5px;
+	word-wrap: break-word;
+	hyphens: auto;
 }
