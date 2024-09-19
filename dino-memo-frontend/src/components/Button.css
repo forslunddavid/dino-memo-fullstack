@@ -5,11 +5,15 @@
 	padding: 4px 0;
 	box-sizing: border-box;
 	border-radius: 8px;
-	color: #2f2f2f;
-	background-color: #ebe0cc;
+	color: #ebebeb;
+	background-color: #2f2f2f;
 	display: block;
 	text-align: center;
-	border: 2px solid #2f2f2f;
+	border: 2px solid #ff7829;
+}
+
+.button:hover {
+	background-color: #ff7829;
 }
 
 .button p {

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useLocation } from "react-router-dom"
 import Card from "../components/Card"
+import GameEndPopup from "../components/GameEndPopup"
+
 import "./Game.css"
 import background from "../assets/wood-background.jpg"
 
@@ -16,8 +18,41 @@ function Game() {
 	const [flippedCards, setFlippedCards] = useState([])
 	const isSinglePlayer = state?.isSinglePlayer
 	const CARD_FLIP_DELAY = 1000
+	const CLICK_DELAY = 1000
+	const [isLoading, setIsLoading] = useState(true)
+	const [showEndGamePopup, setShowEndGamePopup] = useState(false)
+	const [winner, setWinner] = useState(null)
+	const [isClickable, setIsClickable] = useState(true)
+
+	console.log("Rendering Game component", { isLoading, error, gameState })
+
+	const updatePlayer2Name = useCallback(
+		async (playerName) => {
+			try {
+				const response = await fetch(
+					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({ player2Name: playerName }),
+					}
+				)
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+				const updatedGameState = await response.json()
+				setGameState(updatedGameState)
+			} catch (e) {
+				console.error("Failed to update player2 name:", e)
+			}
+		},
+		[gameId, state]
+	)
 
 	const fetchGameState = useCallback(async () => {
+		setIsLoading(true)
 		try {
 			console.log("Fetching game state for gameId:", gameId)
 			const response = await fetch(
@@ -44,8 +79,7 @@ function Game() {
 			} else if (!data.players?.player2?.name) {
 				console.log("Setting local player to player2 (joining)")
 				setLocalPlayer("player2")
-				// Update player2 name in the game state
-				updatePlayer2Name(playerName)
+				await updatePlayer2Name(playerName)
 			} else {
 				console.log("Local player not found in game state")
 				setLocalPlayer(null)
@@ -53,33 +87,10 @@ function Game() {
 		} catch (e) {
 			console.error("Failed to fetch game state:", e)
 			setError(`Failed to load game. Error: ${e.message}`)
+		} finally {
+			setIsLoading(false)
 		}
-	}, [gameId, state])
-
-	const updatePlayer2Name = useCallback(
-		async (playerName) => {
-			try {
-				const response = await fetch(
-					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
-					{
-						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({ player2Name: playerName }),
-					}
-				)
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`)
-				}
-				const updatedGameState = await response.json()
-				setGameState(updatedGameState)
-			} catch (e) {
-				console.error("Failed to update player2 name:", e)
-			}
-		},
-		[gameId, state]
-	)
+	}, [gameId, state, updatePlayer2Name])
 
 	const connectWebSocket = useCallback(() => {
 		const ws = new WebSocket(
@@ -125,16 +136,56 @@ function Game() {
 		return ws
 	}, [gameId])
 
+	const checkGameEnd = useCallback(() => {
+		console.log("Checking game end")
+		if (!gameState || !gameState.players) {
+			console.log("Game state or players not available")
+			return false
+		}
+
+		const totalCards = gameState.cardDeck.length
+		console.log("Total cards:", totalCards)
+		const flippedCards = gameState.cardFlipped.filter(Boolean).length
+		console.log(
+			`Flipped cards: ${flippedCards}, Total cards: ${totalCards}`
+		)
+
+		if (flippedCards >= totalCards - 1) {
+			console.log("All cards flipped, game end")
+			const player1Points = gameState.players.player1?.points || 0
+			const player2Points = gameState.players.player2?.points || 0
+			console.log(
+				`Player 1 points: ${player1Points}, Player 2 points: ${player2Points}`
+			)
+
+			if (player1Points > player2Points) {
+				setWinner(gameState.players.player1.name)
+			} else if (player2Points > player1Points) {
+				setWinner(gameState.players.player2.name)
+			} else {
+				setWinner(null) // It's a tie
+			}
+
+			setShowEndGamePopup(true)
+			return true
+		}
+
+		console.log("Game not ended yet")
+		return false
+	}, [gameState])
+
 	const handleCardClick = useCallback(
 		(index) => {
 			console.log("Card clicked:", index)
 			console.log("Current game state:", gameState)
 			console.log("Local player:", localPlayer)
 
-			if (!gameState || !localPlayer) return
+			if (!gameState || !localPlayer || !isClickable) return
 			if (!isSinglePlayer && gameState.currentPlayer !== localPlayer)
 				return
 			if (gameState.cardFlipped[index]) return
+
+			setIsClickable(false) // Disable clicking
 
 			const newFlippedCards = [...flippedCards, index]
 			setFlippedCards(newFlippedCards)
@@ -190,6 +241,7 @@ function Game() {
 							return newState
 						})
 						setFlippedCards([])
+						setIsClickable(true) // Re-enable clicking after cards are flipped back
 					}, CARD_FLIP_DELAY)
 				}
 				if (
@@ -200,6 +252,11 @@ function Game() {
 						localPlayer === "player1" ? "player2" : "player1"
 				}
 				setFlippedCards([])
+			} else {
+				// If only one card is flipped, re-enable clicking after the delay
+				setTimeout(() => {
+					setIsClickable(true)
+				}, CLICK_DELAY)
 			}
 
 			setGameState(updatedGameState)
@@ -218,15 +275,30 @@ function Game() {
 					})
 				)
 			}
+
+			setTimeout(() => {
+				checkGameEnd()
+			}, 0)
 		},
-		[gameState, localPlayer, socket, gameId, flippedCards, isSinglePlayer]
+		[
+			gameState,
+			localPlayer,
+			socket,
+			gameId,
+			flippedCards,
+			isSinglePlayer,
+			checkGameEnd,
+			isClickable,
+		]
 	)
 
 	useEffect(() => {
+		console.log("useEffect triggered")
 		fetchGameState()
 		const ws = connectWebSocket()
 
 		return () => {
+			console.log("Cleaning up effect")
 			if (ws) {
 				ws.close()
 			}
@@ -244,8 +316,16 @@ function Game() {
 		)
 	}
 
+	if (isLoading) {
+		return (
+			<div className="loader-container">
+				<div className="loader"></div>
+			</div>
+		)
+	}
+
 	if (!gameState) {
-		return <div>Loading... (GameId: {gameId})</div>
+		return <div>No game state available. Please try again.</div>
 	}
 
 	return (
@@ -259,7 +339,9 @@ function Game() {
 						<Card
 							key={index}
 							flipped={gameState.cardFlipped[index]}
-							onClick={() => handleCardClick(index)}
+							onClick={() =>
+								isClickable && handleCardClick(index)
+							}
 							species={card.species}
 							image={card.image}
 						/>
@@ -307,6 +389,7 @@ function Game() {
 					)}
 				</div>
 			</div>
+			<>{showEndGamePopup && <GameEndPopup winner={winner} />}</>
 		</>
 	)
 }

@@ -1,0 +1,11 @@
+.popup-content {
+	background-color: #ebe0cc;
+	padding: 20px;
+	border-radius: 5px;
+	text-align: center;
+}
+
+.popup-content h2 {
+	margin-bottom: 20px;
+	color: #2f2f2f;
+}
