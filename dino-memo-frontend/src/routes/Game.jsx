@@ -179,103 +179,137 @@ function Game() {
 			console.log("Card clicked:", index)
 			console.log("Current game state:", gameState)
 			console.log("Local player:", localPlayer)
+			console.log("Current flipped cards:", flippedCards)
 
+			// Basic checks
 			if (!gameState || !localPlayer || !isClickable) return
 			if (!isSinglePlayer && gameState.currentPlayer !== localPlayer)
 				return
 			if (gameState.cardFlipped[index]) return
+			if (flippedCards.includes(index)) return
 
-			setIsClickable(false) // Disable clicking
-
+			// Update flipped cards array
 			const newFlippedCards = [...flippedCards, index]
 			setFlippedCards(newFlippedCards)
 
+			// Update game state with new flipped card
 			const newCardFlipped = [...gameState.cardFlipped]
 			newCardFlipped[index] = true
 
-			const updatedGameState = {
+			let updatedGameState = {
 				...gameState,
 				cardFlipped: newCardFlipped,
 			}
 
+			// If this is the second card
 			if (newFlippedCards.length === 2) {
 				const [firstCard, secondCard] = newFlippedCards
-				if (
+				const isMatch =
 					gameState.cardDeck[firstCard].species ===
 					gameState.cardDeck[secondCard].species
-				) {
-					// Match found
-					updatedGameState.players[localPlayer].points += 1
-					// Don't change turn on a match
+
+				if (isMatch) {
+					// It's a match - update points and keep cards flipped
+					updatedGameState = {
+						...updatedGameState,
+						players: {
+							...updatedGameState.players,
+							[localPlayer]: {
+								...updatedGameState.players[localPlayer],
+								points:
+									(updatedGameState.players[localPlayer]
+										.points || 0) + 1,
+							},
+						},
+					}
+
+					// Reset for next turn but keep the same player
+					setFlippedCards([])
+
+					// Send update immediately for match
+					setGameState(updatedGameState)
+					if (
+						!isSinglePlayer &&
+						socket &&
+						socket.readyState === WebSocket.OPEN
+					) {
+						socket.send(
+							JSON.stringify({
+								action: "updateGame",
+								gameId: gameId,
+								gameState: updatedGameState,
+							})
+						)
+					}
 				} else {
-					// No match, flip cards back after a delay
+					// No match - flip cards back after delay
 					setTimeout(() => {
-						setGameState((prevState) => {
-							const resetCardFlipped = [...prevState.cardFlipped]
-							resetCardFlipped[firstCard] = false
-							resetCardFlipped[secondCard] = false
-							const newState = {
-								...prevState,
-								cardFlipped: resetCardFlipped,
-								currentPlayer:
-									localPlayer === "player1"
-										? "player2"
-										: "player1",
-							}
+						const noMatchState = {
+							...gameState,
+							cardFlipped: gameState.cardFlipped.map((val, idx) =>
+								idx === firstCard || idx === secondCard
+									? false
+									: val
+							),
+							currentPlayer:
+								localPlayer === "player1"
+									? "player2"
+									: "player1",
+						}
 
-							// Send update to other player
-							if (
-								!isSinglePlayer &&
-								socket &&
-								socket.readyState === WebSocket.OPEN
-							) {
-								socket.send(
-									JSON.stringify({
-										action: "updateGame",
-										gameId: gameId,
-										gameState: newState,
-									})
-								)
-							}
-
-							return newState
-						})
+						setGameState(noMatchState)
 						setFlippedCards([])
-						setIsClickable(true) // Re-enable clicking after cards are flipped back
+
+						if (
+							!isSinglePlayer &&
+							socket &&
+							socket.readyState === WebSocket.OPEN
+						) {
+							socket.send(
+								JSON.stringify({
+									action: "updateGame",
+									gameId: gameId,
+									gameState: noMatchState,
+								})
+							)
+						}
 					}, CARD_FLIP_DELAY)
+
+					// Still need to update current flip immediately
+					setGameState(updatedGameState)
+					if (
+						!isSinglePlayer &&
+						socket &&
+						socket.readyState === WebSocket.OPEN
+					) {
+						socket.send(
+							JSON.stringify({
+								action: "updateGame",
+								gameId: gameId,
+								gameState: updatedGameState,
+							})
+						)
+					}
 				}
+			} else {
+				// First card - just update the game state
+				setGameState(updatedGameState)
 				if (
 					!isSinglePlayer &&
-					!updatedGameState.players[localPlayer].points
+					socket &&
+					socket.readyState === WebSocket.OPEN
 				) {
-					updatedGameState.currentPlayer =
-						localPlayer === "player1" ? "player2" : "player1"
+					socket.send(
+						JSON.stringify({
+							action: "updateGame",
+							gameId: gameId,
+							gameState: updatedGameState,
+						})
+					)
 				}
-				setFlippedCards([])
-			} else {
-				// If only one card is flipped, re-enable clicking after the delay
-				setTimeout(() => {
-					setIsClickable(true)
-				}, CLICK_DELAY)
 			}
 
-			setGameState(updatedGameState)
-
-			if (
-				!isSinglePlayer &&
-				socket &&
-				socket.readyState === WebSocket.OPEN
-			) {
-				console.log("Sending update via WebSocket")
-				socket.send(
-					JSON.stringify({
-						action: "updateGame",
-						gameId: gameId,
-						gameState: updatedGameState,
-					})
-				)
-			}
-
+			// Check for game end
 			setTimeout(() => {
 				checkGameEnd()
 			}, 0)
@@ -288,9 +322,29 @@ function Game() {
 			flippedCards,
 			isSinglePlayer,
 			checkGameEnd,
-			isClickable,
 		]
 	)
+
+	useEffect(() => {
+		console.log("Setting up WebSocket message handler")
+		if (socket) {
+			socket.onmessage = (event) => {
+				const data = JSON.parse(event.data)
+				console.log("Received WebSocket message:", data)
+
+				if (data.type === "gameUpdate") {
+					setGameState((prevState) => ({
+						...prevState,
+						...data.gameState,
+						players: {
+							...prevState?.players,
+							...data.gameState.players,
+						},
+					}))
+				}
+			}
+		}
+	}, [socket])
 
 	useEffect(() => {
 		console.log("useEffect triggered")
