@@ -136,43 +136,72 @@ function Game() {
 		return ws
 	}, [gameId])
 
-	const checkGameEnd = useCallback(() => {
-		console.log("Checking game end")
-		if (!gameState || !gameState.players) {
-			console.log("Game state or players not available")
-			return false
-		}
-
-		const totalCards = gameState.cardDeck.length
-		console.log("Total cards:", totalCards)
-		const flippedCards = gameState.cardFlipped.filter(Boolean).length
-		console.log(
-			`Flipped cards: ${flippedCards}, Total cards: ${totalCards}`
-		)
-
-		if (flippedCards >= totalCards - 1) {
-			console.log("All cards flipped, game end")
-			const player1Points = gameState.players.player1?.points || 0
-			const player2Points = gameState.players.player2?.points || 0
-			console.log(
-				`Player 1 points: ${player1Points}, Player 2 points: ${player2Points}`
+	useEffect(() => {
+		if (gameState && gameState.cardFlipped) {
+			const allCardsFlipped = gameState.cardFlipped.every(
+				(card) => card === true
 			)
+			if (allCardsFlipped) {
+				console.log("Game completed - checking winner")
+				const player1Points = gameState.players.player1?.points || 0
+				const player2Points = gameState.players.player2?.points || 0
+				const player1Name = gameState.players.player1?.name
+				const player2Name = gameState.players.player2?.name
 
-			if (player1Points > player2Points) {
-				setWinner(gameState.players.player1.name)
-			} else if (player2Points > player1Points) {
-				setWinner(gameState.players.player2.name)
-			} else {
-				setWinner(null) // It's a tie
+				console.log(
+					`Final points - ${player1Name}: ${player1Points}, ${player2Name}: ${player2Points}`
+				)
+
+				let winnerName
+				if (player1Points > player2Points) {
+					winnerName = player1Name
+				} else if (player2Points > player1Points) {
+					winnerName = player2Name
+				} else {
+					winnerName = null // For ties
+				}
+
+				setWinner(winnerName)
+				setShowEndGamePopup(true)
 			}
-
-			setShowEndGamePopup(true)
-			return true
 		}
-
-		console.log("Game not ended yet")
-		return false
 	}, [gameState])
+
+	// WebSocket message handler useEffect
+	useEffect(() => {
+		console.log("Setting up WebSocket message handler")
+		if (socket) {
+			socket.onmessage = (event) => {
+				const data = JSON.parse(event.data)
+				console.log("Received WebSocket message:", data)
+
+				if (data.type === "gameUpdate") {
+					setGameState((prevState) => ({
+						...prevState,
+						...data.gameState,
+						players: {
+							...prevState?.players,
+							...data.gameState.players,
+						},
+					}))
+				}
+			}
+		}
+	}, [socket])
+
+	// Initial setup useEffect
+	useEffect(() => {
+		console.log("useEffect triggered")
+		fetchGameState()
+		const ws = connectWebSocket()
+
+		return () => {
+			console.log("Cleaning up effect")
+			if (ws) {
+				ws.close()
+			}
+		}
+	}, [fetchGameState, connectWebSocket])
 
 	const handleCardClick = useCallback(
 		(index) => {
@@ -187,6 +216,23 @@ function Game() {
 				return
 			if (gameState.cardFlipped[index]) return
 			if (flippedCards.includes(index)) return
+
+			const processGameState = (updatedState) => {
+				setGameState(updatedState)
+				if (
+					!isSinglePlayer &&
+					socket &&
+					socket.readyState === WebSocket.OPEN
+				) {
+					socket.send(
+						JSON.stringify({
+							action: "updateGame",
+							gameId: gameId,
+							gameState: updatedState,
+						})
+					)
+				}
+			}
 
 			// Update flipped cards array
 			const newFlippedCards = [...flippedCards, index]
@@ -209,7 +255,6 @@ function Game() {
 					gameState.cardDeck[secondCard].species
 
 				if (isMatch) {
-					// It's a match - update points and keep cards flipped
 					updatedGameState = {
 						...updatedGameState,
 						players: {
@@ -223,26 +268,10 @@ function Game() {
 						},
 					}
 
-					// Reset for next turn but keep the same player
 					setFlippedCards([])
-
-					// Send update immediately for match
-					setGameState(updatedGameState)
-					if (
-						!isSinglePlayer &&
-						socket &&
-						socket.readyState === WebSocket.OPEN
-					) {
-						socket.send(
-							JSON.stringify({
-								action: "updateGame",
-								gameId: gameId,
-								gameState: updatedGameState,
-							})
-						)
-					}
+					processGameState(updatedGameState)
 				} else {
-					// No match - flip cards back after delay
+					processGameState(updatedGameState)
 					setTimeout(() => {
 						const noMatchState = {
 							...gameState,
@@ -257,62 +286,13 @@ function Game() {
 									: "player1",
 						}
 
-						setGameState(noMatchState)
 						setFlippedCards([])
-
-						if (
-							!isSinglePlayer &&
-							socket &&
-							socket.readyState === WebSocket.OPEN
-						) {
-							socket.send(
-								JSON.stringify({
-									action: "updateGame",
-									gameId: gameId,
-									gameState: noMatchState,
-								})
-							)
-						}
+						processGameState(noMatchState)
 					}, CARD_FLIP_DELAY)
-
-					// Still need to update current flip immediately
-					setGameState(updatedGameState)
-					if (
-						!isSinglePlayer &&
-						socket &&
-						socket.readyState === WebSocket.OPEN
-					) {
-						socket.send(
-							JSON.stringify({
-								action: "updateGame",
-								gameId: gameId,
-								gameState: updatedGameState,
-							})
-						)
-					}
 				}
 			} else {
-				// First card - just update the game state
-				setGameState(updatedGameState)
-				if (
-					!isSinglePlayer &&
-					socket &&
-					socket.readyState === WebSocket.OPEN
-				) {
-					socket.send(
-						JSON.stringify({
-							action: "updateGame",
-							gameId: gameId,
-							gameState: updatedGameState,
-						})
-					)
-				}
+				processGameState(updatedGameState)
 			}
-
-			// Check for game end
-			setTimeout(() => {
-				checkGameEnd()
-			}, 0)
 		},
 		[
 			gameState,
@@ -321,43 +301,9 @@ function Game() {
 			gameId,
 			flippedCards,
 			isSinglePlayer,
-			checkGameEnd,
+			isClickable,
 		]
 	)
-
-	useEffect(() => {
-		console.log("Setting up WebSocket message handler")
-		if (socket) {
-			socket.onmessage = (event) => {
-				const data = JSON.parse(event.data)
-				console.log("Received WebSocket message:", data)
-
-				if (data.type === "gameUpdate") {
-					setGameState((prevState) => ({
-						...prevState,
-						...data.gameState,
-						players: {
-							...prevState?.players,
-							...data.gameState.players,
-						},
-					}))
-				}
-			}
-		}
-	}, [socket])
-
-	useEffect(() => {
-		console.log("useEffect triggered")
-		fetchGameState()
-		const ws = connectWebSocket()
-
-		return () => {
-			console.log("Cleaning up effect")
-			if (ws) {
-				ws.close()
-			}
-		}
-	}, [fetchGameState, connectWebSocket])
 
 	if (error) {
 		return (
@@ -381,7 +327,6 @@ function Game() {
 	if (!gameState) {
 		return <div>No game state available. Please try again.</div>
 	}
-
 	return (
 		<>
 			<div
@@ -447,5 +392,4 @@ function Game() {
 		</>
 	)
 }
-
 export default Game

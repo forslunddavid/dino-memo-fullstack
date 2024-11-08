@@ -362,17 +362,16 @@ module.exports.joinGame = async (event) => {
 
 	console.log(`Joining game ${gameId} with player name ${player2Name}`)
 
-	const getParams = {
-		TableName: process.env.GAMES_TABLE,
-		Key: { gameId },
-	}
-
 	try {
-		const result = await dynamoDb.get(getParams).promise()
-		console.log("Current game state:", JSON.stringify(result.Item, null, 2))
+		// First get current game state
+		const result = await dynamoDb
+			.get({
+				TableName: process.env.GAMES_TABLE,
+				Key: { gameId },
+			})
+			.promise()
 
 		if (!result.Item) {
-			console.log("Game not found")
 			return {
 				statusCode: 404,
 				headers,
@@ -380,45 +379,73 @@ module.exports.joinGame = async (event) => {
 			}
 		}
 
-		const gameData = result.Item
-
-		if (gameData.players.player2 && gameData.players.player2.name) {
-			console.log("Game is full")
-			return {
-				statusCode: 400,
-				headers,
-				body: JSON.stringify({ error: "Game is full" }),
-			}
-		}
-
-		const updateParams = {
-			TableName: process.env.GAMES_TABLE,
-			Key: { gameId },
-			UpdateExpression: "SET players.player2 = :player2",
-			ExpressionAttributeValues: {
-				":player2": { name: player2Name, points: 0 },
+		// Update the game state with player 2
+		const updatedGameState = {
+			...result.Item,
+			players: {
+				...result.Item.players,
+				player2: {
+					name: player2Name,
+					points: 0,
+				},
 			},
-			ReturnValues: "ALL_NEW",
 		}
 
-		console.log(
-			"Updating game state:",
-			JSON.stringify(updateParams, null, 2)
-		)
+		// Put the entire updated state back
+		await dynamoDb
+			.put({
+				TableName: process.env.GAMES_TABLE,
+				Item: updatedGameState,
+			})
+			.promise()
 
-		const updateResult = await dynamoDb.update(updateParams).promise()
-		console.log(
-			"Updated game state:",
-			JSON.stringify(updateResult.Attributes, null, 2)
-		)
+		// Get all connections to notify them
+		const connections = await dynamoDb
+			.query({
+				TableName: process.env.CONNECTIONS_TABLE,
+				IndexName: "GameIdIndex",
+				KeyConditionExpression: "gameId = :gameId",
+				ExpressionAttributeValues: {
+					":gameId": gameId,
+				},
+			})
+			.promise()
 
-		// Send a game update to all connected clients
-		await sendGameUpdate(gameId, updateResult.Attributes)
+		// Notify all connected clients
+		const apigwManagementApi = new AWS.ApiGatewayManagementApi({
+			apiVersion: "2018-11-29",
+			endpoint: process.env.WEBSOCKET_ENDPOINT,
+		})
+
+		await Promise.all(
+			connections.Items.map(({ connectionId }) =>
+				apigwManagementApi
+					.postToConnection({
+						ConnectionId: connectionId,
+						Data: JSON.stringify({
+							type: "gameUpdate",
+							gameState: updatedGameState,
+						}),
+					})
+					.promise()
+					.catch((e) => {
+						if (e.statusCode === 410) {
+							return dynamoDb
+								.delete({
+									TableName: process.env.CONNECTIONS_TABLE,
+									Key: { connectionId },
+								})
+								.promise()
+						}
+						throw e
+					})
+			)
+		)
 
 		return {
 			statusCode: 200,
 			headers,
-			body: JSON.stringify(updateResult.Attributes),
+			body: JSON.stringify(updatedGameState),
 		}
 	} catch (error) {
 		console.error("Error joining game:", error)
@@ -428,7 +455,6 @@ module.exports.joinGame = async (event) => {
 			body: JSON.stringify({
 				error: "Could not join game",
 				details: error.message,
-				stack: error.stack,
 			}),
 		}
 	}
