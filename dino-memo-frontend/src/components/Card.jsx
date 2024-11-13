@@ -10,7 +10,7 @@ function Card({ species, image, flipped, onClick }) {
 					<div className="card-front">
 						<img
 							className="card-logo"
-							src="../src/assets/Dinosaur-card-front-image.png"
+							src="../assets/Dinosaur-card-front-image.png"
 							alt=""
 						/>
 					</div>
