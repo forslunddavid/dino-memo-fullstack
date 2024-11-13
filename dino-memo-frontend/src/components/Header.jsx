@@ -1,4 +1,5 @@
 import "./Header.css"
+import headerLogo from "../assets/header-logo.svg"
 
 function Header() {
 	return (
@@ -7,7 +8,7 @@ function Header() {
 				<a href="/">
 					<img
 						className="header-logo"
-						src={"../src/assets/header-logo.svg"}
+						src={headerLogo}
 						alt="Header Logo"
 					/>
 				</a>
