@@ -342,7 +342,7 @@ function Game() {
 								isClickable && handleCardClick(index)
 							}
 							species={card.species}
-							image={card.image}
+							image={card.imageUrl}
 						/>
 					))}
 				</div>
