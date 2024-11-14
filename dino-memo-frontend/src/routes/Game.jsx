@@ -334,6 +334,8 @@ function Game() {
 				style={{ backgroundImage: `url(${background})` }}
 			>
 				<div className="card-container">
+					{console.log("Full gameState:", gameState)}
+					{console.log("cardDeck:", gameState.cardDeck)}
 					{gameState.cardDeck.map((card, index) => (
 						<Card
 							key={index}

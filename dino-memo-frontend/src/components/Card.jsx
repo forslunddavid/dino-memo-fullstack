@@ -1,17 +1,12 @@
 import "./Card.css"
 import cardFront from "../assets/Dinosaur-card-front-image.png"
-import PropTypes from "prop-types"
 
 function Card({ species, image, flipped, onClick }) {
-	const apiEndpoint =
-		"https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev"
-	console.log("Original image:", image)
-	const imageUrl = image
-		? `${apiEndpoint}/images/${
-				image.includes("/") ? image.split("/").pop() : image
-		  }`
-		: ""
-	console.log("Constructed imageUrl:", imageUrl)
+	const images = "https://dino-memory-card-images.s3.eu-north-1.amazonaws.com"
+	// console.log("Original image:", image)
+	const imageUrl = `${images}/${species}.webp`
+
+	// console.log("Constructed imageUrl:", imageUrl)
 
 	return (
 		<>
@@ -35,12 +30,6 @@ function Card({ species, image, flipped, onClick }) {
 			</div>
 		</>
 	)
-}
-Card.propTypes = {
-	species: PropTypes.string.isRequired,
-	image: PropTypes.string.isRequired,
-	flipped: PropTypes.bool.isRequired,
-	onClick: PropTypes.func.isRequired,
 }
 
 export default Card

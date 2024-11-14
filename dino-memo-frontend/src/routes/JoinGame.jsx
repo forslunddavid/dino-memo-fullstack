@@ -60,6 +60,8 @@ function JoinGame() {
 					<div className="join-game-label join-game-input">
 						<label>Name:</label>
 						<input
+							id="player2Name"
+							name="player2Name"
 							type="text"
 							value={player2Name}
 							onChange={(e) => setPlayer2Name(e.target.value)}
@@ -70,6 +72,8 @@ function JoinGame() {
 					<div className="join-game-label join-game-input">
 						<label>Game ID:</label>
 						<input
+							id="gameId"
+							name="gameId"
 							type="text"
 							value={gameId}
 							onChange={(e) => setGameId(e.target.value)}
