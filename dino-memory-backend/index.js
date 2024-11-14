@@ -1,8 +1,12 @@
 const AWS = require("aws-sdk")
 const dynamoDb = new AWS.DynamoDB.DocumentClient()
+const s3 = new AWS.S3()
 
 const headers = {
 	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
+	"Access-Control-Allow-Headers":
+		"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 	"Access-Control-Allow-Credentials": true,
 }
 
@@ -206,6 +210,8 @@ module.exports.createGame = async (event) => {
 			statusCode: 200,
 			headers: {
 				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers":
+					"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 				"Access-Control-Allow-Credentials": true,
 			},
 			body: JSON.stringify({ gameId: gameId, gameState: gameData }),
@@ -216,6 +222,8 @@ module.exports.createGame = async (event) => {
 			statusCode: 500,
 			headers: {
 				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers":
+					"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 				"Access-Control-Allow-Credentials": true,
 			},
 			body: JSON.stringify({
@@ -250,6 +258,8 @@ module.exports.getGame = async (event) => {
 				statusCode: 404,
 				headers: {
 					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Headers":
+						"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 					"Access-Control-Allow-Credentials": true,
 				},
 				body: JSON.stringify({ error: "Game not found" }),
@@ -274,6 +284,8 @@ module.exports.getGame = async (event) => {
 			statusCode: 200,
 			headers: {
 				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers":
+					"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 				"Access-Control-Allow-Credentials": true,
 			},
 			body: JSON.stringify(gameState),
@@ -284,6 +296,8 @@ module.exports.getGame = async (event) => {
 			statusCode: 500,
 			headers: {
 				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers":
+					"Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
 				"Access-Control-Allow-Credentials": true,
 			},
 			body: JSON.stringify({ error: "Could not retrieve game" }),
@@ -514,6 +528,43 @@ async function sendGameUpdate(gameId, gameState) {
 	})
 
 	await Promise.all(postCalls)
+}
+
+exports.getImage = async (event) => {
+	const imageName = event.pathParameters.imageName
+
+	try {
+		const data = await s3
+			.getObject({
+				Bucket: process.env.IMAGE_BUCKET,
+				Key: imageName,
+			})
+			.promise()
+
+		return {
+			statusCode: 200,
+			headers: {
+				"Content-Type": data.ContentType,
+				"Access-Control-Allow-Origin":
+					"https://main.dghrn776wgzke.amplifyapp.com",
+				"Cache-Control": "public, max-age=31536000",
+				"Access-Control-Allow-Methods": "GET",
+				"Access-Control-Allow-Headers": "Content-Type",
+			},
+			body: data.Body.toString("base64"),
+			isBase64Encoded: true,
+		}
+	} catch (error) {
+		console.error("Error fetching image:", error)
+		return {
+			statusCode: error.statusCode || 500,
+			headers: {
+				"Access-Control-Allow-Origin":
+					"https://main.dghrn776wgzke.amplifyapp.com",
+			},
+			body: JSON.stringify({ error: error.message }),
+		}
+	}
 }
 
 module.exports.test = async (event) => {

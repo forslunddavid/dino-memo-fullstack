@@ -9,6 +9,7 @@ provider:
         GAMES_TABLE: ${self:service}-${self:provider.stage}-games
         DINOSAURS_TABLE: ${self:service}-${self:provider.stage}-dinosaurs
         CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+        IMAGE_BUCKET: dino-memory-card-images
         WEBSOCKET_ENDPOINT:
             Fn::Join:
                 - ""
@@ -28,11 +29,13 @@ provider:
                       - dynamodb:PutItem
                       - dynamodb:UpdateItem
                       - dynamodb:DeleteItem
+                      - s3:GetObject
                   Resource:
                       - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GAMES_TABLE}"
                       - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DINOSAURS_TABLE}"
                       - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}"
                       - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}/index/*"
+                      - "arn:aws:s3:::dino-memory-card-images/*"
                 - Effect: Allow
                   Action:
                       - execute-api:ManageConnections
@@ -80,6 +83,13 @@ functions:
         handler: index.websocketDefault
         events:
             - websocket: $default
+    getImage:
+        handler: index.getImage
+        events:
+            - http:
+                  path: images/{imageName}
+                  method: get
+                  cors: true
 
 resources:
     Resources:
