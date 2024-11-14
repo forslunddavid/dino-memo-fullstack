@@ -69,6 +69,8 @@ function CreateGame() {
 						<p>Name:</p>
 						<input
 							className="create-game-input"
+							id="player1Name"
+							name="player1Name"
 							type="text"
 							value={player1Name}
 							onChange={(e) => setPlayer1Name(e.target.value)}

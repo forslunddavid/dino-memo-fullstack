@@ -1,5 +1,6 @@
 import "./Card.css"
 import cardFront from "../assets/Dinosaur-card-front-image.png"
+import PropTypes from "prop-types"
 
 function Card({ species, image, flipped, onClick }) {
 	const apiEndpoint =
@@ -28,6 +29,12 @@ function Card({ species, image, flipped, onClick }) {
 			</div>
 		</>
 	)
+}
+Card.propTypes = {
+	species: PropTypes.string.isRequired,
+	image: PropTypes.string.isRequired,
+	flipped: PropTypes.bool.isRequired,
+	onClick: PropTypes.func.isRequired,
 }
 
 export default Card
