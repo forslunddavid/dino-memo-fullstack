@@ -5,11 +5,13 @@ import PropTypes from "prop-types"
 function Card({ species, image, flipped, onClick }) {
 	const apiEndpoint =
 		"https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev"
+	console.log("Original image:", image)
 	const imageUrl = image
 		? `${apiEndpoint}/images/${
 				image.includes("/") ? image.split("/").pop() : image
 		  }`
 		: ""
+	console.log("Constructed imageUrl:", imageUrl)
 
 	return (
 		<>

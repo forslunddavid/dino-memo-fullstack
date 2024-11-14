@@ -177,10 +177,14 @@ module.exports.createGame = async (event) => {
 	}
 	const dinosaursResult = await dynamoDb.scan(dinosaursParams).promise()
 	const dinosaurs = dinosaursResult.Items
+	console.log("Fetched dinosaurs:", JSON.stringify(dinosaurs, null, 2))
 
-	// Create card deck
+	// Create card deck with image paths
 	const shuffledDinosaurs = shuffleArray([...dinosaurs])
-	const selectedCards = shuffledDinosaurs.slice(0, 12)
+	const selectedCards = shuffledDinosaurs.slice(0, 12).map((dino) => ({
+		species: dino.species,
+		image: dino.species + ".webp", // Assuming images are named like "Tyrannosaurus.webp"
+	}))
 	const cardDeck = shuffleArray([...selectedCards, ...selectedCards])
 
 	const gameData = {
@@ -234,6 +238,7 @@ module.exports.createGame = async (event) => {
 	}
 }
 
+// Helper function
 function shuffleArray(array) {
 	for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1))
@@ -531,7 +536,9 @@ async function sendGameUpdate(gameId, gameState) {
 }
 
 exports.getImage = async (event) => {
+	console.log("Event:", event)
 	const imageName = event.pathParameters.imageName
+	console.log("Attempting to fetch image:", imageName)
 
 	try {
 		const data = await s3
@@ -540,6 +547,11 @@ exports.getImage = async (event) => {
 				Key: imageName,
 			})
 			.promise()
+
+		console.log(
+			"Image fetched successfully, ContentType:",
+			data.ContentType
+		)
 
 		return {
 			statusCode: 200,
@@ -562,7 +574,11 @@ exports.getImage = async (event) => {
 				"Access-Control-Allow-Origin":
 					"https://main.dghrn776wgzke.amplifyapp.com",
 			},
-			body: JSON.stringify({ error: error.message }),
+			body: JSON.stringify({
+				error: error.message,
+				imageName: imageName,
+				bucket: process.env.IMAGE_BUCKET,
+			}),
 		}
 	}
 }
