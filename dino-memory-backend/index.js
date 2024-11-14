@@ -18,33 +18,6 @@ const respond = (statusCode, body) => {
 	}
 }
 
-const sendMessageToClient = async (connectionId, payload) => {
-	const apigwManagementApi = new AWS.ApiGatewayManagementApi({
-		apiVersion: "2018-11-29",
-		endpoint: process.env.WEBSOCKET_ENDPOINT,
-	})
-
-	try {
-		await apigwManagementApi
-			.postToConnection({
-				ConnectionId: connectionId,
-				Data: JSON.stringify(payload),
-			})
-			.promise()
-	} catch (error) {
-		console.error("Error sending message to client:", error)
-		if (error.statusCode === 410) {
-			console.log("Stale connection, deleting:", connectionId)
-			await dynamoDb
-				.delete({
-					TableName: process.env.CONNECTIONS_TABLE,
-					Key: { connectionId },
-				})
-				.promise()
-		}
-	}
-}
-
 // WebSocket handlers
 exports.websocketConnect = async (event) => {
 	const connectionId = event.requestContext.connectionId
