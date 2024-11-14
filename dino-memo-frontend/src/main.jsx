@@ -12,7 +12,7 @@ import Root from "./routes/Root"
 const router = createBrowserRouter([
 	{
 		path: "/",
-		element: <Root />, // Use Root as the parent component
+		element: <Root />,
 		errorElement: <ErrorPage />,
 		children: [
 			{

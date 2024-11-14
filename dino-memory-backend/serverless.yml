@@ -142,14 +142,6 @@ resources:
                 ProtocolType: WEBSOCKET
                 RouteSelectionExpression: $request.body.action
 
-# custom:
-#   esbuild:
-#     bundle: true
-#     minify: false
-
-# plugins:
-#   - serverless-esbuild
-
 custom:
     esbuild:
         build: false

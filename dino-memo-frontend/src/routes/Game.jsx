@@ -17,7 +17,7 @@ function Game() {
 	const maxReconnectAttempts = 5
 	const [flippedCards, setFlippedCards] = useState([])
 	const isSinglePlayer = state?.isSinglePlayer
-	const CARD_FLIP_DELAY = 1000
+	const CARD_FLIP_DELAY = 5000
 	const CLICK_DELAY = 1000
 	const [isLoading, setIsLoading] = useState(true)
 	const [showEndGamePopup, setShowEndGamePopup] = useState(false)
@@ -350,19 +350,10 @@ function Game() {
 				</div>
 				<div className="game-info">
 					<p>Game ID: {gameId}</p>
-					{/* <p>Your Name: {state?.playerName}</p> */}
 					{isSinglePlayer ? (
 						<p>Points: {gameState.players?.player1?.points || 0}</p>
 					) : (
 						<>
-							{/* <p>
-								You are:{" "}
-								{localPlayer === "player1"
-									? "Player 1"
-									: localPlayer === "player2"
-									? "Player 2"
-									: "Spectator"}
-							</p> */}
 							<p>
 								Player 1:{" "}
 								{gameState.players?.player1?.name || "Unknown"}{" "}

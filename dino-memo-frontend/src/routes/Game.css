@@ -1,6 +1,6 @@
 .game-bg {
 	width: 100vw;
-	min-height: 100vh;
+	min-height: 80vh;
 	padding-top: 1em;
 	background-size: cover;
 	background-repeat: repeat-y;
@@ -16,6 +16,7 @@
 	margin: 1em;
 	justify-content: center;
 	padding-bottom: 100px;
+	min-height: 60vh;
 }
 
 .game-info {
@@ -38,7 +39,6 @@
 	height: 100vh;
 }
 
-/* HTML: <div class="loader"></div> */
 .loader {
 	width: 50px;
 	aspect-ratio: 1;
