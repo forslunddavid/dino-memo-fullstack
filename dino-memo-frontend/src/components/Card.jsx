@@ -4,7 +4,7 @@ const apiEndpoint =
 	"https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev"
 const imageUrl = `${apiEndpoint}/images/${image.split("/").pop()}`
 
-function Card({ species, imageUrl, flipped, onClick }) {
+function Card({ species, flipped, onClick }) {
 	return (
 		<>
 			<div
