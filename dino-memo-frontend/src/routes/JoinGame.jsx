@@ -3,93 +3,109 @@ import { useNavigate } from "react-router-dom"
 import background from "../assets/wood-background-with-cards.jpg"
 import Button from "../components/Button"
 import "./JoinGame.css"
+import { joinGame } from "../constants/api"
 
 function JoinGame() {
-	const [player2Name, setPlayer2Name] = useState("")
-	const [gameId, setGameId] = useState("")
+	const [formData, setFormData] = useState({
+		player2Name: "",
+		gameId: "",
+	})
 	const [error, setError] = useState("")
 	const [isLoading, setIsLoading] = useState(false)
 	const navigate = useNavigate()
 
-	const handleJoinGame = async () => {
-		if (gameId && player2Name) {
-			setIsLoading(true)
-			setError("")
-			try {
-				const response = await fetch(
-					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
-					{
-						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({ player2Name }),
-					}
-				)
+	const handleInputChange = (e) => {
+		const { name, value } = e.target
+		setFormData((prev) => ({
+			...prev,
+			[name]: value,
+		}))
+		setError("")
+	}
 
-				if (!response.ok) {
-					const errorData = await response.json()
-					throw new Error(errorData.error || "Failed to join game")
-				}
+	const handleJoinGame = async (e) => {
+		e.preventDefault() // Prevent form submission
+		const { player2Name, gameId } = formData
 
-				const gameData = await response.json()
-				console.log("Joined game:", gameData)
+		if (!player2Name || !gameId) {
+			setError("Please enter both name and game ID")
+			return // Return early if validation fails
+		}
 
-				navigate(`/game/${gameId}`, {
-					state: { playerName: player2Name },
-				})
-			} catch (err) {
-				console.error("Error joining game:", err)
-				setError(err.message)
-			} finally {
-				setIsLoading(false)
-			}
-		} else {
-			setError("Please enter both a name and a game ID")
+		setIsLoading(true)
+		setError("")
+
+		try {
+			const gameData = await joinGame(gameId, player2Name)
+			console.log("Joined game:", gameData)
+			navigate(`/game/${gameId}`, {
+				state: { playerName: player2Name },
+			})
+		} catch (err) {
+			console.error("Error joining game:", err)
+			setError(err.message)
+		} finally {
+			setIsLoading(false)
 		}
 	}
 
 	return (
-		<>
-			<div
-				className="game-bg"
-				style={{ backgroundImage: `url(${background})` }}
-			>
-				<div className="welcome-wrapper">
+		<main
+			className="game-bg"
+			style={{ backgroundImage: `url(${background})` }}
+		>
+			<div className="welcome-wrapper">
+				<form onSubmit={handleJoinGame} className="join-game-form">
 					<h3>Join a game</h3>
-					<div className="join-game-label join-game-input">
-						<label>Name:</label>
+
+					<div className="form-group">
+						<label htmlFor="player2Name">Name:</label>
 						<input
 							id="player2Name"
 							name="player2Name"
 							type="text"
-							value={player2Name}
-							onChange={(e) => setPlayer2Name(e.target.value)}
+							value={formData.player2Name}
+							onChange={handleInputChange}
 							disabled={isLoading}
+							required
+							maxLength={50}
+							aria-label="Your name"
 						/>
 					</div>
 
-					<div className="join-game-label join-game-input">
-						<label>Game ID:</label>
+					<div className="form-group">
+						<label htmlFor="gameId">Game ID:</label>
 						<input
 							id="gameId"
 							name="gameId"
 							type="text"
-							value={gameId}
-							onChange={(e) => setGameId(e.target.value)}
+							value={formData.gameId}
+							onChange={handleInputChange}
 							disabled={isLoading}
+							required
+							pattern="[A-Za-z0-9\-]+"
 						/>
 					</div>
-					<div className="join-game-button">
-						<Button onClick={handleJoinGame} disabled={isLoading}>
+
+					<div className="form-group">
+						<Button
+							className="join-game-button"
+							disabled={isLoading}
+							aria-busy={isLoading}
+							type="submit"
+						>
 							{isLoading ? "Joining..." : "Join Game"}
 						</Button>
 					</div>
 
-					{error && <p style={{ color: "red" }}>{error}</p>}
-				</div>
+					{error && (
+						<p role="alert" className="error-message">
+							{error}
+						</p>
+					)}
+				</form>
 			</div>
-		</>
+		</main>
 	)
 }
 
