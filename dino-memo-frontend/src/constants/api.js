@@ -1,5 +1,7 @@
+// constants/api.js
 const API_BASE_URL =
 	"https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev"
+const WS_URL = "wss://zc8eahv77i.execute-api.eu-north-1.amazonaws.com/dev"
 
 export async function joinGame(gameId, player2Name) {
 	const response = await fetch(`${API_BASE_URL}/game/${gameId}/join`, {
@@ -11,8 +13,7 @@ export async function joinGame(gameId, player2Name) {
 	})
 
 	if (!response.ok) {
-		const errorData = await response.json()
-		throw new Error(errorData.error || "Failed to join game")
+		throw new Error(`HTTP error! status: ${response.status}`)
 	}
 
 	return response.json()
@@ -35,4 +36,28 @@ export async function createGame(player1Name, isSinglePlayer) {
 	}
 
 	return response.json()
+}
+
+export async function getGameState(gameId) {
+	const response = await fetch(`${API_BASE_URL}/game/${gameId}`)
+
+	if (!response.ok) {
+		throw new Error(`HTTP error! status: ${response.status}`)
+	}
+
+	return response.json()
+}
+
+export function createWebSocketConnection(gameId, onMessage, onClose, onError) {
+	const ws = new WebSocket(`${WS_URL}?gameId=${gameId}`)
+
+	ws.onopen = () => {
+		console.log("WebSocket connected")
+	}
+
+	ws.onmessage = onMessage
+	ws.onclose = onClose
+	ws.onerror = onError
+
+	return ws
 }

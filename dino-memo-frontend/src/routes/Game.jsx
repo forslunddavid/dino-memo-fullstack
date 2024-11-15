@@ -1,3 +1,8 @@
+import {
+	getGameState,
+	joinGame,
+	createWebSocketConnection,
+} from "../constants/api"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useLocation } from "react-router-dom"
 import Card from "../components/Card"
@@ -29,39 +34,20 @@ function Game() {
 	const updatePlayer2Name = useCallback(
 		async (playerName) => {
 			try {
-				const response = await fetch(
-					`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}/join`,
-					{
-						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({ player2Name: playerName }),
-					}
-				)
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`)
-				}
-				const updatedGameState = await response.json()
+				const updatedGameState = await joinGame(gameId, playerName)
 				setGameState(updatedGameState)
 			} catch (e) {
 				console.error("Failed to update player2 name:", e)
 			}
 		},
-		[gameId, state]
+		[gameId]
 	)
 
 	const fetchGameState = useCallback(async () => {
 		setIsLoading(true)
 		try {
 			console.log("Fetching game state for gameId:", gameId)
-			const response = await fetch(
-				`https://2zyyqrsoik.execute-api.eu-north-1.amazonaws.com/dev/game/${gameId}`
-			)
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`)
-			}
-			const data = await response.json()
+			const data = await getGameState(gameId)
 			console.log("Fetched game state:", JSON.stringify(data, null, 2))
 			setGameState(data)
 
@@ -93,35 +79,21 @@ function Game() {
 	}, [gameId, state, updatePlayer2Name])
 
 	const connectWebSocket = useCallback(() => {
-		const ws = new WebSocket(
-			`wss://zc8eahv77i.execute-api.eu-north-1.amazonaws.com/dev?gameId=${gameId}`
-		)
-
-		ws.onopen = () => {
-			console.log("WebSocket connected")
-			setSocket(ws)
-			reconnectAttempts.current = 0
-		}
-
-		ws.onmessage = (event) => {
+		const handleMessage = (event) => {
 			const data = JSON.parse(event.data)
 			if (data.type === "gameUpdate") {
 				setGameState((prevState) => ({
 					...prevState,
 					...data.gameState,
 					players: {
-						...prevState.players,
+						...prevState?.players,
 						...data.gameState.players,
 					},
 				}))
 			}
 		}
 
-		ws.onerror = (error) => {
-			console.error("WebSocket error:", error)
-		}
-
-		ws.onclose = () => {
+		const handleClose = () => {
 			console.log("WebSocket disconnected")
 			setSocket(null)
 
@@ -133,6 +105,18 @@ function Game() {
 			}
 		}
 
+		const handleError = (error) => {
+			console.error("WebSocket error:", error)
+		}
+
+		const ws = createWebSocketConnection(
+			gameId,
+			handleMessage,
+			handleClose,
+			handleError
+		)
+
+		setSocket(ws)
 		return ws
 	}, [gameId])
 
