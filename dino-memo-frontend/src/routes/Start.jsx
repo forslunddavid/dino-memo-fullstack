@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
 import "./Start.css"
-import background from "../assets/wood-background-with-cards.jpg"
+import background from "../assets/wood-background-with-cards.webp"
 import MobileWarning from "../components/MobileWarning"
 
 function Start() {

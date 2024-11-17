@@ -12,5 +12,8 @@
   "dependencies": {
     "aws-sdk": "^2.1682.0",
     "serverless": "^4.1.19"
+  },
+  "devDependencies": {
+    "vite-plugin-compression": "^0.5.1"
   }
 }

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import background from "../assets/wood-background-with-cards.jpg"
+import background from "../assets/wood-background-with-cards.webp"
 import Button from "../components/Button"
 import "./JoinGame.css"
 import { joinGame } from "../constants/api"
@@ -59,7 +59,7 @@ function JoinGame() {
 					<h3>Join a game</h3>
 
 					<div className="form-group">
-						<label htmlFor="player2Name">Name:</label>
+						{/* <label htmlFor="player2Name">Name:</label> */}
 						<input
 							id="player2Name"
 							name="player2Name"
@@ -70,11 +70,12 @@ function JoinGame() {
 							required
 							maxLength={50}
 							aria-label="Your name"
+							placeholder="Enter your name"
 						/>
 					</div>
 
 					<div className="form-group">
-						<label htmlFor="gameId">Game ID:</label>
+						{/* <label htmlFor="gameId">Game ID:</label> */}
 						<input
 							id="gameId"
 							name="gameId"
@@ -84,6 +85,7 @@ function JoinGame() {
 							disabled={isLoading}
 							required
 							pattern="[A-Za-z0-9\-]+"
+							placeholder="Enter your Game ID"
 						/>
 					</div>
 

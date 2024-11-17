@@ -1,12 +1,16 @@
 .game-bg {
 	width: 100vw;
-	min-height: 80vh;
+	min-height: 60vh;
+	max-height: 80vh;
+	height: 80vh;
 	padding-top: 1em;
 	background-size: cover;
 	background-repeat: repeat-y;
 	color: #2f2f2f;
 	display: flex;
 	flex-direction: column;
+	overflow-y: auto;
+	flex-shrink: 1;
 }
 
 .card-container {
@@ -49,9 +53,9 @@
 .loader,
 .loader:before,
 .loader:after {
-	background: radial-gradient(closest-side at 50% 12.5%, #f03355 96%, #0000)
+	background: radial-gradient(closest-side at 50% 12.5%, #ff7829 96%, #0000)
 			50% 0/20% 80% repeat-y,
-		radial-gradient(closest-side at 12.5% 50%, #f03355 96%, #0000) 0 50%/80%
+		radial-gradient(closest-side at 12.5% 50%, #ff7829 96%, #0000) 0 50%/80%
 			20% repeat-x;
 }
 .loader:before,

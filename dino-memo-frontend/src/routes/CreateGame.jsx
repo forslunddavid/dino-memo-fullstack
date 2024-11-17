@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import Button from "../components/Button"
-import background from "../assets/wood-background-with-cards.jpg"
+import background from "../assets/wood-background-with-cards.webp"
 import { createGame } from "../constants/api"
 import "./CreateGame.css"
 
@@ -63,7 +63,6 @@ function CreateGame() {
 					<h3>Create a new game</h3>
 
 					<div className="form-group">
-						<label htmlFor="player1Name">Name:</label>
 						<input
 							id="player1Name"
 							name="player1Name"
@@ -74,6 +73,7 @@ function CreateGame() {
 							required
 							maxLength={50}
 							aria-label="Your name"
+							placeholder="Enter your name"
 						/>
 					</div>
 
@@ -93,7 +93,6 @@ function CreateGame() {
 							Single player game
 						</label>
 					</div>
-
 					<div className="form-group">
 						<Button
 							type="submit"

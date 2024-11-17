@@ -9,7 +9,7 @@ import Card from "../components/Card"
 import GameEndPopup from "../components/GameEndPopup"
 
 import "./Game.css"
-import background from "../assets/wood-background.jpg"
+import background from "../assets/wood-background.webp"
 
 function Game() {
 	const { gameId } = useParams()
