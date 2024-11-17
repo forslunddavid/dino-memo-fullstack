@@ -15,7 +15,11 @@ function Card({ species, image, flipped, onClick }) {
 			>
 				<div className="card-inner">
 					<div className="card-front">
-						<img className="card-logo" src={cardFront} />
+						<img
+							className="card-logo"
+							src={cardFront}
+							alt="playing card"
+						/>
 					</div>
 					<div className="card-back">
 						<img
