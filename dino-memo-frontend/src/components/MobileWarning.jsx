@@ -1,6 +1,7 @@
 // components/MobileWarning.jsx
 import React from "react"
 import "./MobileWarning.css"
+import { AiOutlineExclamationCircle } from "react-icons/ai"
 
 function MobileWarning({ isVisible, setShowWarning }) {
 	// Changed to take setShowWarning directly
@@ -14,17 +15,7 @@ function MobileWarning({ isVisible, setShowWarning }) {
 	return (
 		<div className="mobile-warning" role="alert">
 			<div className="mobile-warning-content">
-				<svg
-					className="warning-icon"
-					width="24"
-					height="24"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-				>
-					<path d="M12 9v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
-				</svg>
+				<AiOutlineExclamationCircle className="warning-icon" />
 				<h2>Desktop Recommended</h2>
 				<p>
 					This game is best experienced on a larger screen. Some

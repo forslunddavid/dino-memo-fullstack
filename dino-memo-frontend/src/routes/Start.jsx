@@ -38,12 +38,13 @@ function Start() {
 				<section className="welcome-section">
 					<h1>Welcome to Dino Memory</h1>
 					<p className="paragraph">
-						This is an online multiplayer game to learn your
-						dinosaurs
+						This is an online multiplayer game to teach you about
+						dinosaurs.
 					</p>
 					<p className="paragraph">
 						To create a game just click the create game button and
-						enter your name
+						enter your name. Share the game-id with your friends to
+						play with a friend.
 					</p>
 					<p className="paragraph">
 						To join a friend click join game, enter your name and
