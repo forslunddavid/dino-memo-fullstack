@@ -38,6 +38,8 @@ export const useGameLogic = (
 				return
 			if (gameState.cardFlipped[index]) return
 			if (flippedCards.includes(index)) return
+			// Prevent flipping more than 2 cards
+			if (flippedCards.length >= 2) return
 
 			const newFlippedCards = [...flippedCards, index]
 			setFlippedCards(newFlippedCards)
@@ -51,6 +53,7 @@ export const useGameLogic = (
 			}
 
 			if (newFlippedCards.length === 2) {
+				setIsClickable(false) // Disable further clicks while processing
 				const [firstCard, secondCard] = newFlippedCards
 				const isMatch =
 					gameState.cardDeck[firstCard].species ===
@@ -70,6 +73,7 @@ export const useGameLogic = (
 						},
 					}
 					setFlippedCards([])
+					setIsClickable(true)
 					processGameState(updatedGameState)
 				} else {
 					processGameState(updatedGameState)
@@ -87,6 +91,7 @@ export const useGameLogic = (
 									: "player1",
 						}
 						setFlippedCards([])
+						setIsClickable(true)
 						processGameState(noMatchState)
 					}, CARD_FLIP_DELAY)
 				}

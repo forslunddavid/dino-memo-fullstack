@@ -371,6 +371,19 @@ module.exports.joinGame = async (event) => {
 			}
 		}
 
+		// Check if player2 already exists and has a name
+		if (result.Item.players.player2 && result.Item.players.player2.name) {
+			return {
+				statusCode: 409, // Conflict
+				headers,
+				body: JSON.stringify({
+					error: "Game is already full",
+					message:
+						"This game already has two players and cannot accept more players.",
+				}),
+			}
+		}
+
 		// Update the game state with player 2
 		const updatedGameState = {
 			...result.Item,
